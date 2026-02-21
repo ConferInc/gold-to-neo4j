@@ -1,0 +1,93 @@
+sync:
+  mode: incremental
+  state_file: recipes_state.json
+  page_size: 1000
+  retries: 3
+  retry_backoff_seconds: 1.5
+  timeout_seconds: 30
+
+schema: gold
+
+tables:
+  recipes:
+    label: Recipe
+    primary_key: id
+    updated_at: updated_at
+    columns:
+      - id
+      - title
+      - description
+      - meal_type
+      - difficulty
+      - cuisine_id
+      - prep_time_minutes
+      - cook_time_minutes
+      - total_time_minutes
+      - servings
+      - image_url
+      - source_url
+      - instructions
+      - percent_calories_protein
+      - percent_calories_fat
+      - percent_calories_carbs
+      - created_at
+      - updated_at
+    enrich:
+      cuisine_code:
+        from_table: cuisines
+        source_key: id
+        lookup_key: cuisine_id
+        value_field: code
+
+  cuisines:
+    label: Cuisine
+    primary_key: id
+    updated_at: created_at
+    columns:
+      - id
+      - code
+      - name
+      - region
+      - country
+      - parent_cuisine_id
+      - description
+      - created_at
+
+  recipe_ingredients:
+    skip_upsert: true
+    primary_key: id
+    updated_at: created_at
+    alias_map:
+      created_at: created_at
+    columns:
+      - id
+      - recipe_id
+      - ingredient_id
+      - created_at
+
+  ingredients:
+    skip_upsert: true
+    label: Ingredient
+    primary_key: id
+    updated_at: updated_at
+    columns:
+      - id
+
+relationships:
+  - name: recipe_has_ingredient
+    type: USES_INGREDIENT
+    source_table: recipes
+    target_table: ingredients
+    join_table: recipe_ingredients
+    join_source_key: recipe_id
+    join_target_key: ingredient_id
+    updated_at: created_at
+
+  - name: recipe_belongs_to_cuisine
+    type: BELONGS_TO_CUSINE
+    source_table: recipes
+    target_table: cuisines
+    join_table: recipes
+    join_source_key: id
+    join_target_key: cuisine_id
+    updated_at: updated_at

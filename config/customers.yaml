@@ -1,0 +1,380 @@
+sync:
+  mode: incremental
+  state_file: customers_state.json
+  page_size: 1000
+  retries: 3
+  retry_backoff_seconds: 1.5
+  timeout_seconds: 30
+
+schema: gold
+
+tables:
+  b2c_customers:
+    label: B2C_Customer
+    primary_key: id
+    updated_at: updated_at
+    columns:
+      - id
+      - household_id
+      - email
+      - full_name
+      - first_name
+      - last_name
+      - birth_month
+      - birth_year
+      - date_of_birth
+      - age
+      - gender
+      - phone
+      - is_profile_owner
+      - account_status
+      - created_at
+      - updated_at
+      - appwrite_user_id
+
+  b2c_customer_health_conditions:
+    label: B2C_Customer_Health_Conditions
+    primary_key: id
+    updated_at: created_at
+    safety_critical: true
+    columns:
+      - id
+      - b2c_customer_id
+      - condition_id
+      - severity
+      - diagnosis_date
+      - notes
+      - is_active
+      - created_at
+
+  b2c_customer_health_profiles:
+    label: B2C_Customer_Health_Profiles
+    primary_key: id
+    updated_at: updated_at
+    safety_critical: true
+    columns:
+      - id
+      - b2c_customer_id
+      - height_cm
+      - weight_kg
+      - bmi
+      - bmr
+      - tdee
+      - activity_level
+      - health_goal
+      - target_weight_kg
+      - target_calories
+      - target_protein_g
+      - target_carbs_g
+      - target_fat_g
+      - target_fiber_g
+      - target_sodium_mg
+      - target_sugar_g
+      - created_at
+      - updated_at
+      - intolerances
+      - disliked_ingredients
+      - onboarding_complete
+
+  allergens:
+    label: Allergens
+    primary_key: id
+    updated_at: created_at
+    safety_critical: true
+    columns:
+      - id
+      - code
+      - name
+      - common_names
+      - category
+      - is_top_9
+      - severity_typical
+      - description
+      - cross_reactive_with
+      - regulatory_region
+      - created_at
+
+  dietary_preferences:
+    label: Dietary_Preferences
+    primary_key: id
+    updated_at: created_at
+    safety_critical: true
+    columns:
+      - id
+      - code
+      - name
+      - category
+      - description
+      - created_at
+
+  certifications:
+    label: Certificates
+    primary_key: id
+    updated_at: created_at
+    columns:
+      - id
+      - code
+      - name
+      - description
+      - category
+      - region
+      - created_at
+
+  households:
+    label: Household
+    primary_key: id
+    updated_at: created_at
+    columns:
+      - id
+      - household_name
+      - primary_account_email
+      - account_status
+      - household_type
+      - total_members
+      - location_country
+      - location_region
+      - location_city
+      - location_postal_code
+      - created_at
+
+  b2c_customer_allergens:
+    skip_upsert: true
+    primary_key: id
+    safety_critical: true
+    columns:
+      - b2c_customer_id
+      - allergen_id
+
+  b2c_customer_dietary_preferences:
+    skip_upsert: true
+    primary_key: id
+    safety_critical: true
+    columns:
+      - b2c_customer_id
+      - diet_id
+
+  customer_product_interactions:
+    skip_upsert: true
+    primary_key: id
+    updated_at: created_at
+    columns:
+      - id
+      - b2c_customer_id
+      - entity_type
+      - product_id
+      - recipe_id
+      - interaction_type
+      - created_at
+
+  recipes:
+    skip_upsert: true
+    label: Recipe
+    primary_key: id
+    updated_at: updated_at
+    columns:
+      - id
+
+  products:
+    skip_upsert: true
+    label: Product
+    primary_key: id
+    updated_at: updated_at
+    columns:
+      - id
+
+relationships:
+  - name: customer_has_profile
+    type: HAS_PROFILE
+    source_table: b2c_customers
+    target_table: b2c_customer_health_profiles
+    join_table: b2c_customer_health_profiles
+    join_source_key: b2c_customer_id
+    join_target_key: id
+    updated_at: updated_at
+
+  - name: customer_has_condition
+    type: HAS_CONDITION
+    source_table: b2c_customers
+    target_table: b2c_customer_health_conditions
+    join_table: b2c_customer_health_conditions
+    join_source_key: b2c_customer_id
+    join_target_key: id
+    updated_at: created_at
+
+  - name: customer_is_allergic
+    type: IS_ALLERGIC
+    source_table: b2c_customers
+    target_table: allergens
+    join_table: b2c_customer_allergens
+    join_source_key: b2c_customer_id
+    join_target_key: allergen_id
+
+  - name: customer_follows_diet
+    type: FOLLOWS_DIET
+    source_table: b2c_customers
+    target_table: dietary_preferences
+    join_table: b2c_customer_dietary_preferences
+    join_source_key: b2c_customer_id
+    join_target_key: diet_id
+
+  - name: customer_belongs_to_household
+    type: BELONGS_TO
+    source_table: b2c_customers
+    target_table: households
+    join_table: b2c_customers
+    join_source_key: household_id
+    join_target_key: id
+
+  - name: customer_viewed_recipe
+    type: VIEWED
+    source_table: b2c_customers
+    target_table: recipes
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: recipe_id
+    filters:
+      entity_type: recipe
+      interaction_type: viewed
+
+  - name: customer_viewed_product
+    type: VIEWED
+    source_table: b2c_customers
+    target_table: products
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: product_id
+    filters:
+      entity_type: product
+      interaction_type: viewed
+
+  - name: customer_rated_recipe
+    type: RATED
+    source_table: b2c_customers
+    target_table: recipes
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: recipe_id
+    filters:
+      entity_type: recipe
+      interaction_type: rated
+
+  - name: customer_rated_product
+    type: RATED
+    source_table: b2c_customers
+    target_table: products
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: product_id
+    filters:
+      entity_type: product
+      interaction_type: rated
+
+  - name: customer_saved_recipe
+    type: SAVED
+    source_table: b2c_customers
+    target_table: recipes
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: recipe_id
+    filters:
+      entity_type: recipe
+      interaction_type: saved
+
+  - name: customer_saved_product
+    type: SAVED
+    source_table: b2c_customers
+    target_table: products
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: product_id
+    filters:
+      entity_type: product
+      interaction_type: saved
+
+  - name: customer_rejected_recipe
+    type: REJECTED
+    source_table: b2c_customers
+    target_table: recipes
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: recipe_id
+    filters:
+      entity_type: recipe
+      interaction_type: rejected
+
+  - name: customer_rejected_product
+    type: REJECTED
+    source_table: b2c_customers
+    target_table: products
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: product_id
+    filters:
+      entity_type: product
+      interaction_type: rejected
+
+  - name: customer_whitelisted_recipe
+    type: WHITELISTED
+    source_table: b2c_customers
+    target_table: recipes
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: recipe_id
+    filters:
+      entity_type: recipe
+      interaction_type: whitelisted
+
+  - name: customer_whitelisted_product
+    type: WHITELISTED
+    source_table: b2c_customers
+    target_table: products
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: product_id
+    filters:
+      entity_type: product
+      interaction_type: whitelisted
+
+  - name: customer_blacklisted_recipe
+    type: BLACKLISTED
+    source_table: b2c_customers
+    target_table: recipes
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: recipe_id
+    filters:
+      entity_type: recipe
+      interaction_type: blacklisted
+
+  - name: customer_blacklisted_product
+    type: BLACKLISTED
+    source_table: b2c_customers
+    target_table: products
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: product_id
+    filters:
+      entity_type: product
+      interaction_type: blacklisted
+
+  - name: customer_tried_recipe
+    type: TRIED
+    source_table: b2c_customers
+    target_table: recipes
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: recipe_id
+    filters:
+      entity_type: recipe
+      interaction_type: tried
+
+  - name: customer_tried_product
+    type: TRIED
+    source_table: b2c_customers
+    target_table: products
+    join_table: customer_product_interactions
+    join_source_key: b2c_customer_id
+    join_target_key: product_id
+    filters:
+      entity_type: product
+      interaction_type: tried

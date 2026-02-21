@@ -1,0 +1,62 @@
+sync:
+  mode: incremental
+  state_file: products_state.json
+  page_size: 1000
+  retries: 3
+  retry_backoff_seconds: 1.5
+  timeout_seconds: 30
+
+schema: gold
+
+tables:
+  products:
+    label: Product
+    primary_key: id
+    updated_at: updated_at
+    columns:
+      - id
+      - vendor_id
+      - external_id
+      - global_product_id
+      - name
+      - brand
+      - description
+      - category_id
+      - barcode
+      - gtin_type
+      - price
+      - currency
+      - package_weight
+      - package_weight_g
+      - serving_size
+      - image_url
+      - product_url
+      - manufacturer
+      - country_of_origin
+      - status
+      - calories
+      - calories_from_fat
+      - total_fat_g
+      - saturated_fat_g
+      - trans_fat_g
+      - polyunsaturated_fat_g
+      - monounsaturated_fat_g
+      - cholesterol_mg
+      - sodium_mg
+      - total_carbs_g
+      - dietary_fiber_g
+      - total_sugars_g
+      - added_sugars_g
+      - sugar_alcohols_g
+      - protein_g
+      - vitamin_a_mcg
+      - vitamin_c_mg
+      - vitamin_d_mcg
+      - calcium_mg
+      - iron_mg
+      - potassium_mg
+      - created_at
+      - updated_at
+      - source_system
+
+relationships: []

@@ -1,0 +1,11 @@
+-- Placeholder for Supabase triggers to write to outbox
+-- TODO: define per-table triggers.
+
+-- Example:
+-- CREATE OR REPLACE FUNCTION enqueue_outbox_event() RETURNS trigger AS $$
+-- BEGIN
+--   INSERT INTO outbox_events (id, event_type, table_name, row_id, payload)
+--   VALUES (gen_random_uuid(), TG_ARGV[0], TG_TABLE_NAME, NEW.id::text, to_jsonb(NEW));
+--   RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;

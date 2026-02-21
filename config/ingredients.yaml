@@ -1,0 +1,142 @@
+sync:
+  mode: incremental
+  state_file: ingredients_state.json
+  page_size: 1000
+  retries: 3
+  retry_backoff_seconds: 1.5
+  timeout_seconds: 30
+
+schema: gold
+
+tables:
+  ingredients:
+    label: Ingredient
+    primary_key: id
+    updated_at: updated_at
+    columns:
+      - id
+      - name
+      - category
+      - usda_fdc_id
+      - is_allergen
+      - calories
+      - protein_g
+      - total_fat_g
+      - saturated_fat_g
+      - trans_fat_g
+      - cholesterol_mg
+      - sodium_mg
+      - total_carbs_g
+      - dietary_fiber_g
+      - total_sugars_g
+      - polyunsaturated_fat_g
+      - monounsaturated_fat_g
+      - vitamin_a_mcg
+      - vitamin_c_mg
+      - vitamin_d_mcg
+      - vitamin_e_mg
+      - vitamin_k_mcg
+      - calcium_mg
+      - iron_mg
+      - magnesium_mg
+      - potassium_mg
+      - created_at
+      - updated_at
+
+  nutrition_facts:
+    label: IngredientNutritionValue
+    primary_key: id
+    updated_at: updated_at
+    columns:
+      - id
+      - nutrient_id
+      - entity_id
+      - amount
+      - unit
+      - per_amount
+      - per_amount_grams
+      - data_source
+      - confidence_score
+      - measurement_date
+      - created_at
+      - updated_at
+    filters:
+      entity_type: ingredient
+    enrich:
+      nutrient_code:
+        from_table: nutrition_definitions
+        source_key: id
+        lookup_key: nutrient_id
+        value_field: nutrient_code
+
+  nutrition_definitions:
+    label: NutrientDefinition
+    primary_key: id
+    updated_at: updated_at
+    columns:
+      - id
+      - nutrient_name
+      - nutrient_code
+      - usda_nutrient_id
+      - usda_nutrient_number
+      - spoonacular_name
+      - category
+      - subcategory
+      - unit_name
+      - is_mandatory_fda
+      - is_essential
+      - rank
+      - description
+      - recommended_daily_value
+      - rdv_unit
+      - created_at
+      - updated_at
+
+  nutrition_categories:
+    label: NutritionCategory
+    primary_key: id
+    updated_at: created_at
+    columns:
+      - id
+      - parent_category_id
+      - category_name
+      - subcategory_name
+      - hierarchy_level
+      - sort_order
+      - description
+      - display_name
+      - icon_name
+      - color_code
+      - created_at
+
+relationships:
+  - name: ingredient_has_nutrition_value
+    type: HAS_NUTRITION_VALUE
+    source_table: ingredients
+    target_table: nutrition_facts
+    join_table: nutrition_facts
+    join_source_key: entity_id
+    join_target_key: id
+    updated_at: updated_at
+    filters:
+      entity_type: ingredient
+
+  - name: nutrition_value_of_nutrient
+    type: OF_NUTRIENT
+    source_table: nutrition_facts
+    target_table: nutrition_definitions
+    join_table: nutrition_facts
+    join_source_key: id
+    join_target_key: nutrient_id
+    updated_at: updated_at
+    filters:
+      entity_type: ingredient
+
+  - name: nutrition_category_parent_of
+    type: PARENT_OF
+    source_table: nutrition_categories
+    target_table: nutrition_categories
+    join_table: nutrition_categories
+    join_source_key: parent_category_id
+    join_target_key: id
+    updated_at: created_at

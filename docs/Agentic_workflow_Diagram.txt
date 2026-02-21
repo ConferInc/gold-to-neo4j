@@ -1,0 +1,37 @@
+                       ┌────────────────────────────────────┐
+                       │         Deterministic Pipeline      │
+                       │  (ingest / transform / write)       │
+                       └────────────────────────────────────┘
+                                      │
+                                      │ exceptions / ambiguity / drift
+                                      ▼
+                           ┌───────────────────────┐
+                           │     Agent Layer       │
+                           │  (decision support)   │
+                           └───────────────────────┘
+                ┌───────────────┬───────────────┬───────────────┬───────────────┐
+                │               │               │               │               │
+                ▼               ▼               ▼               ▼               │
+   ┌───────────────────┐ ┌───────────────────┐ ┌────────────────────┐ ┌────────────────────┐
+   │ Schema Drift Agent│ │ Failure Triage    │ │ Reconciliation /   │ │ Mapping Suggestion │
+   │                   │ │ Agent             │ │ Backfill Agent     │ │ Agent              │
+   └───────────────────┘ └───────────────────┘ └────────────────────┘ └────────────────────┘
+                │               │               │               │
+      proposes alias_map   classifies errors  detects drift      proposes event mapping
+      or safe mapping      retry / dead /      propose replay     (no execution)
+      (no execution)       needs review        or batch rerun
+                │               │               │               │
+                └───────────────┴───────────────┴───────────────┴───────────────┘
+                                      │
+                                      ▼
+                           ┌───────────────────────┐
+                           │ Human / Policy Gate   │
+                           │ (approve / reject /   │
+                           │  automate with rules) │
+                           └───────────────────────┘
+                                      │
+                                      ▼
+                       ┌────────────────────────────────────┐
+                       │      Actions Back on Pipeline      │
+                       │  (apply mapping, retry, rerun)     │
+                       └────────────────────────────────────┘
