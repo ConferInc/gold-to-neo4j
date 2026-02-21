@@ -1,4 +1,4 @@
-"""Agent gateway client helpers."""
+""" Agent gateway client helpers."""
 
 from __future__ import annotations
 
