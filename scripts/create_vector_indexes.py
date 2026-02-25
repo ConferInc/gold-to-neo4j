@@ -36,7 +36,7 @@ def _cypher_prop(prop: str) -> str:
 
 
 def _fetch_index_names(neo4j: Neo4jClient) -> set[str]:
-    rows = neo4j.query("CALL db.indexes() YIELD name RETURN name")
+    rows = neo4j.query("SHOW INDEXES YIELD name RETURN name")
     return {row.get("name") for row in rows if row.get("name")}
 
 
@@ -84,13 +84,13 @@ def main() -> int:
         existing = _fetch_index_names(neo4j)
         created = 0
         for item in _iter_index_defs(config):
-            name = _index_name(item["label"], item["property"])
-            if name in existing:
-                LOG.info("vector index exists", extra={"name": name})
+            idx_name = _index_name(item["label"], item["property"])
+            if idx_name in existing:
+                LOG.info("vector index exists", extra={"index_name": idx_name})
                 continue
             _create_index(
                 neo4j,
-                name=name,
+                name=idx_name,
                 label=item["label"],
                 prop=item["property"],
                 dimensions=item["dimensions"],
@@ -98,10 +98,10 @@ def main() -> int:
             )
             LOG.info(
                 "vector index created",
-                extra={"name": name, "label": item["label"], "property": item["property"]},
+                extra={"index_name": idx_name, "label": item["label"], "property": item["property"]},
             )
             created += 1
-        LOG.info("vector index creation complete", extra={"created": created})
+        LOG.info("vector index creation complete", extra={"indexes_created": created})
         return 0
     finally:
         neo4j.close()

@@ -1,10 +1,11 @@
-"""Semantic embedding helpers using Neo4j genai.vector.encode."""
+"""Semantic embedding helpers using Neo4j ai.text.embed (Cypher 25)."""
 
 from __future__ import annotations
 
 import json
 import re
 import os
+import time
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -15,6 +16,11 @@ from shared.neo4j_client import Neo4jClient
 
 LOG = get_logger(__name__)
 ROOT = Path(__file__).resolve().parents[1]
+
+# Rate limit settings
+RATE_LIMIT_DELAY_SECONDS = float(os.getenv("EMBEDDING_DELAY_SECONDS", "15"))
+RATE_LIMIT_MAX_RETRIES = int(os.getenv("EMBEDDING_MAX_RETRIES", "5"))
+RATE_LIMIT_BACKOFF_BASE = float(os.getenv("EMBEDDING_BACKOFF_BASE", "30"))
 
 
 def load_embedding_config(path: Optional[Path] = None) -> Dict[str, Any]:
@@ -149,7 +155,7 @@ def _resolve_embedding_params(
     model: Optional[str],
     token: Optional[str],
 ) -> tuple[str, str, str]:
-    resolved_provider = provider or os.getenv("EMBEDDING_PROVIDER", "OpenAI")
+    resolved_provider = provider or os.getenv("EMBEDDING_PROVIDER", "openai")
     resolved_model = model or os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
     resolved_token = (
         token
@@ -162,6 +168,46 @@ def _resolve_embedding_params(
             "missing embedding token; set EMBEDDING_API_TOKEN, LITELLM_API_KEY, or OPENAI_API_KEY"
         )
     return resolved_provider, resolved_model, resolved_token
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    """Check if exception is a rate limit (429) error."""
+    msg = str(exc).lower()
+    return "429" in msg or "rate limit" in msg
+
+
+def _write_single_embedding(
+    neo4j: Neo4jClient,
+    label: str,
+    row: Dict[str, Any],
+    *,
+    id_property: str,
+    write_property: str,
+    provider_val: str,
+    model_val: str,
+    token_val: str,
+) -> bool:
+    """Write embedding for a single node. Returns True if successful."""
+    cypher = f"""CYPHER 25
+    MATCH (n:{label})
+    WHERE n.{_cypher_prop(id_property)} = $node_id
+    WITH n
+    WHERE $text IS NOT NULL AND $text <> ''
+    WITH n, ai.text.embed($text, $provider, {{token: $token, model: $model}}) AS embedding
+    SET n.{_cypher_prop(write_property)} = embedding
+    RETURN count(n) AS updated
+    """
+    result = neo4j.query(
+        cypher,
+        {
+            "node_id": row["id"],
+            "text": row["text"],
+            "provider": provider_val,
+            "model": model_val,
+            "token": token_val,
+        },
+    )
+    return bool(result and result[0].get("updated", 0))
 
 
 def write_semantic_embeddings(
@@ -178,23 +224,46 @@ def write_semantic_embeddings(
     if not rows:
         return 0
     provider_val, model_val, token_val = _resolve_embedding_params(provider, model, token)
-    cypher = f"""
-    UNWIND $rows AS row
-    MATCH (n:{label})
-    WHERE n.{_cypher_prop(id_property)} = row.id
-    WITH n, row
-    WHERE row.text IS NOT NULL AND row.text <> ''
-    WITH n, ai.text.embed(row.text, $provider, {{token: $token, model: $model}}) AS embedding
-    SET n.{_cypher_prop(write_property)} = embedding
-    RETURN count(n) AS updated
-    """
-    result = neo4j.query(
-        cypher,
-        {"rows": rows, "provider": provider_val, "model": model_val, "token": token_val},
-    )
-    if result:
-        return int(result[0].get("updated", 0) or 0)
-    return 0
+
+    updated = 0
+    for i, row in enumerate(rows):
+        retries = 0
+        while retries <= RATE_LIMIT_MAX_RETRIES:
+            try:
+                if _write_single_embedding(
+                    neo4j,
+                    label,
+                    row,
+                    id_property=id_property,
+                    write_property=write_property,
+                    provider_val=provider_val,
+                    model_val=model_val,
+                    token_val=token_val,
+                ):
+                    updated += 1
+                break
+            except Exception as exc:
+                if _is_rate_limit_error(exc):
+                    retries += 1
+                    if retries > RATE_LIMIT_MAX_RETRIES:
+                        LOG.error(
+                            "max retries exceeded for rate limit",
+                            extra={"label": label, "node_id": row.get("id"), "retries": retries},
+                        )
+                        raise
+                    backoff = RATE_LIMIT_BACKOFF_BASE * (2 ** (retries - 1))
+                    LOG.warning(
+                        "rate limit hit, backing off",
+                        extra={"backoff_seconds": backoff, "retry": retries},
+                    )
+                    time.sleep(backoff)
+                else:
+                    raise
+
+        if i < len(rows) - 1:
+            time.sleep(RATE_LIMIT_DELAY_SECONDS)
+
+    return updated
 
 
 def normalize_label_name(label: str) -> str:

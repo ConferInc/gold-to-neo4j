@@ -44,13 +44,14 @@ tables:
       - updated_at
 
   nutrition_facts:
-    label: IngredientNutritionValue
+    label: NutritionValue
     primary_key: id
     updated_at: updated_at
     columns:
       - id
       - nutrient_id
       - entity_id
+      - entity_type
       - amount
       - unit
       - per_amount
@@ -110,16 +111,14 @@ tables:
       - created_at
 
 relationships:
-  - name: ingredient_has_nutrition_value
-    type: HAS_NUTRITION_VALUE
+  - name: ingredient_has_nutrition
+    type: HAS_NUTRITION
     source_table: ingredients
     target_table: nutrition_facts
     join_table: nutrition_facts
     join_source_key: entity_id
     join_target_key: id
     updated_at: updated_at
-    filters:
-      entity_type: ingredient
 
   - name: nutrition_value_of_nutrient
     type: OF_NUTRIENT
@@ -129,8 +128,6 @@ relationships:
     join_source_key: id
     join_target_key: nutrient_id
     updated_at: updated_at
-    filters:
-      entity_type: ingredient
 
   - name: nutrition_category_parent_of
     type: PARENT_OF
