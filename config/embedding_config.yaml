@@ -20,19 +20,13 @@ graph_sage:
     - HAS_CONDITION
     - IS_ALLERGIC
     - FOLLOWS_DIET
-    - BELONGS_TO
     - VIEWED
-    - RATED
     - SAVED
-    - REJECTED
-    - WHITELISTED
-    - BLACKLISTED
-    - TRIED
-    - USES_INGREDIENT
     - BELONGS_TO_CUSINE
-  # Numeric properties to use as GraphSAGE features (must exist on all projected nodes)
-  # Add your node numeric properties here
-  feature_properties: []
+  # Numeric properties to use as GraphSAGE features (must exist on all projected nodes).
+  # For heterogeneous labels, use dummyFeature so every projected node has a numeric input.
+  feature_properties:
+    - dummyFeature
   # Fallback if nodes lack numeric features - will add dummyFeature = 1.0
   use_dummy_feature_fallback: true
   model_name: b2c_customer_model
@@ -43,19 +37,19 @@ semantic:
   # Per-label text assembly: which properties to concatenate for embedding
   label_text_rules:
     Recipe:
-      properties: [title, description, meal_type, instructions]
+      properties: [title, description, difficulty, instructions]
       separator: " "
     Ingredient:
       properties: [name, category]
       separator: " "
     Product:
-      properties: [name, brand, description]
+      properties: [name, brand, status]
       separator: " "
     B2C_Customer:
-      properties: [health_goal, activity_level, intolerances]
+      properties: [email, full_name, gender]
       separator: " "
     Cuisine:
-      properties: [name, region]
+      properties: [code]
       separator: " "
   write_property: semanticEmbedding
 
@@ -70,7 +64,40 @@ vector_indexes:
     - label: Product
       property: semanticEmbedding
       dimensions: 1536
+    - label: B2C_Customer
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: Cuisine
+      property: semanticEmbedding
+      dimensions: 1536
   structural:
     - label: B2C_Customer
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Recipe
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Product
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Ingredient
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Cuisine
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Household
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Allergens
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Dietary_Preferences
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: B2C_Customer_Health_Profiles
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: B2C_Customer_Health_Conditions
       property: graphSageEmbedding
       dimensions: 128

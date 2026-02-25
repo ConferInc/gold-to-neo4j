@@ -37,14 +37,20 @@ def main() -> int:
         for label, rule in rules.items():
             LOG.info("semantic embedding start", extra={"label": label})
             batch_updates = 0
+            batch_num = 0
             for ids in iter_label_ids(
                 neo4j,
                 label,
                 write_property=write_property,
-                batch_size=250,
+                batch_size=5,
                 only_missing=True,
             ):
+                batch_num += 1
                 rows = prepare_semantic_rows(neo4j, label, ids, rule=rule)
+                LOG.info(
+                    "processing batch",
+                    extra={"label": label, "batch": batch_num, "rows": len(rows)},
+                )
                 updated = write_semantic_embeddings(
                     neo4j,
                     label,
@@ -52,6 +58,10 @@ def main() -> int:
                     write_property=write_property,
                 )
                 batch_updates += updated
+                LOG.info(
+                    "batch complete",
+                    extra={"label": label, "batch": batch_num, "updated": updated, "total_so_far": batch_updates},
+                )
             LOG.info(
                 "semantic embedding complete",
                 extra={"label": label, "updated": batch_updates},

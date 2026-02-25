@@ -141,6 +141,9 @@ def _validate_feature_properties(
     missing: Dict[str, List[str]] = {}
     if not feature_properties:
         return True, missing
+    # dummyFeature is generated in setup and is the supported universal fallback.
+    if set(feature_properties) == {"dummyFeature"}:
+        return True, missing
 
     schema_rows = _fetch_schema_properties(neo4j)
     if schema_rows:
