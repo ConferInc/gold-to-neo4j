@@ -6,9 +6,10 @@ import argparse
 import json
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List
+from typing import Any, Callable, Dict, Iterable, List
 
 import yaml
 
@@ -90,16 +91,51 @@ def _ensure_state_file(layer: str) -> None:
         json.dump(new_state, f, indent=2)
 
 
-def _run_layer(layer: str) -> None:
+def _run_layer(layer: str) -> Dict[str, Any]:
+    """Run a single layer and return tool metrics."""
     main_fn = LAYER_MAIN[layer]
     lock_path = _acquire_lock(layer)
+    t0 = time.time()
+    status = "completed"
+    error_msg = None
     try:
         _ensure_state_file(layer)
         LOG.info("starting layer", extra={"layer": layer})
         main_fn()
         LOG.info("completed layer", extra={"layer": layer})
+    except Exception as exc:
+        status = "failed"
+        error_msg = str(exc)
+        raise
     finally:
         _release_lock(lock_path)
+        duration_ms = int((time.time() - t0) * 1000)
+    metrics: Dict[str, Any] = {
+        "tool_name": f"neo4j_sync_{layer}",
+        "duration_ms": duration_ms,
+        "records_in": 0,
+        "records_out": 0,
+        "status": status,
+    }
+    if error_msg:
+        metrics["error"] = error_msg
+    # Try to read run_summary JSONL for record counts
+    summary_path = ROOT / "state" / "run_summaries" / f"{layer}.jsonl"
+    if summary_path.exists():
+        try:
+            with summary_path.open("r", encoding="utf-8") as f:
+                lines = f.readlines()
+            if lines:
+                last = json.loads(lines[-1])
+                total_rows = sum(
+                    t.get("rows_fetched", 0)
+                    for t in last.get("tables", {}).values()
+                )
+                metrics["records_in"] = total_rows
+                metrics["records_out"] = total_rows
+        except Exception:
+            pass
+    return metrics
 
 
 def _parse_args(argv: Iterable[str]) -> argparse.Namespace:
@@ -115,15 +151,41 @@ def _parse_args(argv: Iterable[str]) -> argparse.Namespace:
 
 def main(argv: Iterable[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
+    tool_metrics: List[Dict[str, Any]] = []
     try:
         if args.layer == "all":
             for layer in LAYER_ORDER:
-                _run_layer(layer)
+                m = _run_layer(layer)
+                tool_metrics.append(m)
         else:
-            _run_layer(args.layer)
+            m = _run_layer(args.layer)
+            tool_metrics.append(m)
     except Exception:
         LOG.exception("catalog batch run failed")
+        # Still emit partial metrics
+        json_summary = {
+            "tool_metrics": tool_metrics,
+            "llm_usage": {},
+            "dq_summary": {},
+        }
+        print(json.dumps(json_summary))
         return 1
+
+    # ── Structured JSON summary (last line — parsed by orchestrator) ──
+    total_in = sum(m.get("records_in", 0) for m in tool_metrics)
+    total_out = sum(m.get("records_out", 0) for m in tool_metrics)
+    json_summary = {
+        "total_records_fetched": total_in,
+        "total_records_written": total_out,
+        "tool_metrics": tool_metrics,
+        "llm_usage": {},
+        "dq_summary": {
+            "total_records": total_in,
+            "pass_count": total_out,
+            "fail_count": total_in - total_out,
+        },
+    }
+    print(json.dumps(json_summary))
     return 0
 
 
