@@ -234,3 +234,33 @@ class SupabaseClient:
         )
         rows = response.data or []
         return [str(row.get(primary_key)) for row in rows if row.get(primary_key) is not None]
+
+    def list_active_event_triggers(self) -> List[Dict[str, Any]]:
+        """Return all active event trigger definitions from orchestration.event_triggers."""
+        try:
+            response = (
+                self._client.schema("orchestration")
+                .from_("event_triggers")
+                .select("*")
+                .eq("is_active", True)
+                .execute()
+            )
+            return response.data or []
+        except Exception as exc:
+            LOG.warning("list_active_event_triggers failed", extra={"error": str(exc)})
+            return []
+
+    def list_active_schedules(self) -> List[Dict[str, Any]]:
+        """Return all active schedule definitions from orchestration.schedule_definitions."""
+        try:
+            response = (
+                self._client.schema("orchestration")
+                .from_("schedule_definitions")
+                .select("*")
+                .eq("is_active", True)
+                .execute()
+            )
+            return response.data or []
+        except Exception as exc:
+            LOG.warning("list_active_schedules failed", extra={"error": str(exc)})
+            return []
