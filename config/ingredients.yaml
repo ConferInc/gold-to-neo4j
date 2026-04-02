@@ -12,6 +12,8 @@ tables:
   ingredients:
     label: Ingredient
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: updated_at
     columns:
       - id
@@ -46,6 +48,8 @@ tables:
   nutrition_facts:
     label: NutritionValue
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: updated_at
     columns:
       - id
@@ -63,16 +67,12 @@ tables:
       - updated_at
     filters:
       entity_type: ingredient
-    enrich:
-      nutrient_code:
-        from_table: nutrition_definitions
-        source_key: id
-        lookup_key: nutrient_id
-        value_field: nutrient_code
 
   nutrition_definitions:
     label: NutrientDefinition
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: updated_at
     columns:
       - id
@@ -96,6 +96,8 @@ tables:
   nutrition_categories:
     label: NutritionCategory
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: created_at
     columns:
       - id

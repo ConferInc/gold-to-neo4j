@@ -1,21 +1,56 @@
-"""Semantic embedding helpers using Neo4j ai.text.embed (Cypher 25)."""
+"""Semantic embedding helpers. Generates embeddings in Python (LiteLLM) and writes to Neo4j."""
 
 from __future__ import annotations
 
 import json
-import re
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 import yaml
 
+from dotenv import load_dotenv
+
 from shared.logging import get_logger
 from shared.neo4j_client import Neo4jClient
 
+try:
+    from litellm import embedding as litellm_embedding
+except ImportError:
+    litellm_embedding = None  # type: ignore
+
+try:
+    import httpx
+except ImportError:
+    httpx = None  # type: ignore
+
 LOG = get_logger(__name__)
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _read_base_url_from_env_file() -> Optional[str]:
+    """Read LITELLM_BASE_URL or OPENAI_API_BASE directly from .env file."""
+    for p in [ROOT / ".env", Path.cwd() / ".env"]:
+        if not p.exists():
+            continue
+        try:
+            raw = p.read_text(encoding="utf-8", errors="replace")
+            for line in raw.splitlines():
+                line = line.strip()
+                if line.startswith("#") or "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                k, v = k.strip(), v.strip().strip('"').strip("'")
+                if k == "LITELLM_BASE_URL" and v:
+                    return v
+                if k == "OPENAI_API_BASE" and v:
+                    return v
+        except OSError:
+            pass
+    return None
+
 
 # Rate limit settings
 RATE_LIMIT_DELAY_SECONDS = float(os.getenv("EMBEDDING_DELAY_SECONDS", "15"))
@@ -150,24 +185,111 @@ def prepare_semantic_rows(
     return output
 
 
-def _resolve_embedding_params(
-    provider: Optional[str],
-    model: Optional[str],
-    token: Optional[str],
-) -> tuple[str, str, str]:
-    resolved_provider = provider or os.getenv("EMBEDDING_PROVIDER", "openai")
-    resolved_model = model or os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
-    resolved_token = (
-        token
-        or os.getenv("EMBEDDING_API_TOKEN")
-        or os.getenv("LITELLM_API_KEY")
-        or os.getenv("OPENAI_API_KEY")
+def _embed_via_http(
+    base_url: str,
+    model: str,
+    api_key: str,
+    texts: List[str],
+) -> List[List[float]]:
+    """Call embedding API directly via HTTP (bypasses LiteLLM routing)."""
+    if httpx is None:
+        raise ImportError("httpx is required for direct HTTP embeddings; pip install httpx")
+
+    url = base_url.rstrip("/") + "/embeddings"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
+    payload = {"model": model, "input": texts}
+
+    with httpx.Client(timeout=60.0) as client:
+        resp = client.post(url, json=payload, headers=headers)
+        resp.raise_for_status()
+    data = resp.json()
+
+    items = data.get("data") or []
+    index_to_embedding: Dict[int, List[float]] = {}
+    for item in items:
+        idx = item.get("index") if isinstance(item, dict) else getattr(item, "index", None)
+        emb = item.get("embedding") if isinstance(item, dict) else getattr(item, "embedding", None)
+        if idx is not None and emb is not None:
+            index_to_embedding[int(idx)] = list(emb)
+
+    embeddings: List[List[float]] = []
+    for i in range(len(texts)):
+        emb = index_to_embedding.get(i)
+        if emb is None:
+            LOG.warning(
+                "embedding API returned no vector for index",
+                extra={"index": i, "text_preview": (texts[i][:100] if texts[i] else "")[:100]},
+            )
+            # Return None as placeholder; caller will filter out
+            embeddings.append(None)  # type: ignore
+        else:
+            embeddings.append(emb)
+    return embeddings
+
+
+def embed_texts_python(
+    texts: List[str],
+    *,
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
+    api_base: Optional[str] = None,
+) -> List[List[float]]:
+    """
+    Generate embeddings for texts. When LITELLM_BASE_URL is set, uses direct HTTP
+    to the LiteLLM proxy (bypasses LiteLLM library routing to api.openai.com).
+    """
+    if not texts:
+        return []
+
+    load_dotenv(ROOT / ".env", override=True)
+    load_dotenv(Path.cwd() / ".env", override=True)
+
+    model_val = model or os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+    api_key_val = api_key or os.getenv("EMBEDDING_API_TOKEN") or os.getenv("LITELLM_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key_val:
+        raise ValueError("missing embedding API key; set EMBEDDING_API_TOKEN, LITELLM_API_KEY, or OPENAI_API_KEY")
+
+    api_base_val = (
+        api_base
+        or os.getenv("LITELLM_BASE_URL")
+        or os.getenv("OPENAI_API_BASE")
+        or _read_base_url_from_env_file()
     )
-    if not resolved_token:
-        raise ValueError(
-            "missing embedding token; set EMBEDDING_API_TOKEN, LITELLM_API_KEY, or OPENAI_API_KEY"
-        )
-    return resolved_provider, resolved_model, resolved_token
+    if api_base_val:
+        api_base_val = str(api_base_val).strip()
+
+    # When api_base is set, use direct HTTP to LiteLLM proxy (never hit OpenAI directly)
+    if api_base_val:
+        return _embed_via_http(api_base_val, model_val, api_key_val, texts)
+
+    # Fallback: LiteLLM library (hits OpenAI or configured provider)
+    if litellm_embedding is None:
+        raise ImportError("litellm is required when LITELLM_BASE_URL is not set; pip install litellm")
+
+    kwargs: Dict[str, Any] = {"model": model_val, "input": texts, "api_key": api_key_val}
+    response = litellm_embedding(**kwargs)
+    data = getattr(response, "data", None) or []
+    index_to_embedding: Dict[int, List[float]] = {}
+    for item in data:
+        idx = getattr(item, "index", None) if not isinstance(item, dict) else item.get("index")
+        emb = getattr(item, "embedding", None) if not isinstance(item, dict) else item.get("embedding")
+        if idx is not None and emb is not None:
+            index_to_embedding[int(idx)] = list(emb)
+    embeddings: List[List[float]] = []
+    for i in range(len(texts)):
+        emb = index_to_embedding.get(i)
+        if emb is None:
+            LOG.warning(
+                "embedding API returned no vector for index",
+                extra={"index": i},
+            )
+            embeddings.append(None)  # type: ignore
+        else:
+            embeddings.append(emb)
+    return embeddings
 
 
 def _is_rate_limit_error(exc: Exception) -> bool:
@@ -176,38 +298,37 @@ def _is_rate_limit_error(exc: Exception) -> bool:
     return "429" in msg or "rate limit" in msg
 
 
-def _write_single_embedding(
+def _write_embeddings_batch_python(
     neo4j: Neo4jClient,
     label: str,
-    row: Dict[str, Any],
+    rows: List[Dict[str, Any]],
     *,
-    id_property: str,
-    write_property: str,
-    provider_val: str,
-    model_val: str,
-    token_val: str,
-) -> bool:
-    """Write embedding for a single node. Returns True if successful."""
-    cypher = f"""CYPHER 25
+    id_property: str = "id",
+    write_property: str = "semanticEmbedding",
+) -> int:
+    """Write pre-computed embeddings to Neo4j nodes. rows: [{"id": ..., "embedding": [...]}]."""
+    if not rows:
+        return 0
+
+    id_prop = _cypher_prop(id_property)
+    write_prop = _cypher_prop(write_property)
+
+    write_rows = [{"id": r["id"], "embedding": r["embedding"]} for r in rows if r.get("embedding") is not None]
+    if not write_rows:
+        return 0
+
+    cypher = f"""
+    UNWIND $rows AS row
     MATCH (n:{label})
-    WHERE n.{_cypher_prop(id_property)} = $node_id
-    WITH n
-    WHERE $text IS NOT NULL AND $text <> ''
-    WITH n, ai.text.embed($text, $provider, {{token: $token, model: $model}}) AS embedding
-    SET n.{_cypher_prop(write_property)} = embedding
-    RETURN count(n) AS updated
+    WHERE n.{id_prop} = row.id
+    SET n.{write_prop} = row.embedding
     """
-    result = neo4j.query(
-        cypher,
-        {
-            "node_id": row["id"],
-            "text": row["text"],
-            "provider": provider_val,
-            "model": model_val,
-            "token": token_val,
-        },
-    )
-    return bool(result and result[0].get("updated", 0))
+    neo4j.execute_many(cypher, write_rows)
+    return len(write_rows)
+
+
+# Batch size for embedding API calls (avoids huge single requests)
+EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "50"))
 
 
 def write_semantic_embeddings(
@@ -220,27 +341,64 @@ def write_semantic_embeddings(
     provider: Optional[str] = None,
     model: Optional[str] = None,
     token: Optional[str] = None,
+    api_base: Optional[str] = None,
 ) -> int:
+    """
+    Generate embeddings in Python and write to Neo4j nodes.
+    Uses LITELLM_BASE_URL for direct HTTP to proxy when set.
+    rows: [{"id": ..., "text": ...}]. Returns count of nodes updated.
+    """
     if not rows:
         return 0
-    provider_val, model_val, token_val = _resolve_embedding_params(provider, model, token)
 
-    updated = 0
-    for i, row in enumerate(rows):
+    load_dotenv(ROOT / ".env", override=True)
+    load_dotenv(Path.cwd() / ".env", override=True)
+
+    model_val = model or os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+    api_key_val = (
+        token
+        or os.getenv("EMBEDDING_API_TOKEN")
+        or os.getenv("LITELLM_API_KEY")
+        or os.getenv("OPENAI_API_KEY")
+    )
+    api_base_val = (
+        api_base
+        or os.getenv("LITELLM_BASE_URL")
+        or os.getenv("OPENAI_API_BASE")
+        or _read_base_url_from_env_file()
+    )
+    if not api_key_val:
+        raise ValueError(
+            "missing embedding API key; set EMBEDDING_API_TOKEN, LITELLM_API_KEY, or OPENAI_API_KEY"
+        )
+
+    total_updated = 0
+    batch_size = EMBEDDING_BATCH_SIZE
+
+    for offset in range(0, len(rows), batch_size):
+        batch = rows[offset : offset + batch_size]
+        texts = [r["text"] for r in batch]
+
         retries = 0
         while retries <= RATE_LIMIT_MAX_RETRIES:
             try:
-                if _write_single_embedding(
+                embeddings = embed_texts_python(
+                    texts,
+                    model=model_val,
+                    api_key=api_key_val,
+                    api_base=api_base_val,
+                )
+                for i, row in enumerate(batch):
+                    if i < len(embeddings):
+                        row["embedding"] = embeddings[i]
+                updated = _write_embeddings_batch_python(
                     neo4j,
                     label,
-                    row,
+                    batch,
                     id_property=id_property,
                     write_property=write_property,
-                    provider_val=provider_val,
-                    model_val=model_val,
-                    token_val=token_val,
-                ):
-                    updated += 1
+                )
+                total_updated += updated
                 break
             except Exception as exc:
                 if _is_rate_limit_error(exc):
@@ -248,7 +406,7 @@ def write_semantic_embeddings(
                     if retries > RATE_LIMIT_MAX_RETRIES:
                         LOG.error(
                             "max retries exceeded for rate limit",
-                            extra={"label": label, "node_id": row.get("id"), "retries": retries},
+                            extra={"label": label, "batch_offset": offset, "retries": retries},
                         )
                         raise
                     backoff = RATE_LIMIT_BACKOFF_BASE * (2 ** (retries - 1))
@@ -260,10 +418,10 @@ def write_semantic_embeddings(
                 else:
                     raise
 
-        if i < len(rows) - 1:
+        if offset + batch_size < len(rows):
             time.sleep(RATE_LIMIT_DELAY_SECONDS)
 
-    return updated
+    return total_updated
 
 
 def normalize_label_name(label: str) -> str:
