@@ -37,21 +37,52 @@ def ensure_dummy_feature(neo4j: Neo4jClient, labels: list[str]) -> None:
         LOG.info("ensured dummyFeature", extra={"label": label})
 
 
+def _resolve_feature_properties(gs: dict) -> tuple[dict[str, list[str]], list[str]]:
+    """
+    Resolve per-label feature properties for projection, and features for train().
+    Returns (node_projection_props, train_feature_properties).
+    - Projection: uses label_feature_properties per label (with dummyFeature fallback).
+    - Train: uses ['dummyFeature'] when label_feature_properties is heterogeneous,
+      since GDS requires featureProperties to exist on ALL labels.
+    """
+    labels = gs.get("node_labels") or []
+    label_feat = gs.get("label_feature_properties") or {}
+    global_feat = gs.get("feature_properties") or []
+    use_dummy = gs.get("use_dummy_feature_fallback", True)
+    if not global_feat and use_dummy:
+        global_feat = ["dummyFeature"]
+
+    projection: dict[str, list[str]] = {}
+
+    for label in labels:
+        props = label_feat.get(label) or global_feat
+        if not props and use_dummy:
+            props = ["dummyFeature"]
+        props = list(dict.fromkeys(props))
+        if use_dummy and "dummyFeature" not in props:
+            props = props + ["dummyFeature"]
+        projection[label] = props
+
+    # Train must use only properties present on ALL labels. With heterogeneous
+    # label_feature_properties, that is dummyFeature only.
+    if label_feat:
+        train_feat = ["dummyFeature"]
+    else:
+        train_feat = list(global_feat) if global_feat else ["dummyFeature"]
+
+    return projection, train_feat
+
+
 def project_graph(neo4j: Neo4jClient, cfg: dict) -> None:
     """Project graph in GDS with node properties for GraphSAGE features."""
     gs = cfg["graph_sage"]
     labels = gs["node_labels"]
     rels = gs["relationship_types"]
     graph_name = gs["graph_name"]
-    feat_props = gs.get("feature_properties") or []
-    use_dummy = gs.get("use_dummy_feature_fallback", True)
-    
-    if not feat_props and use_dummy:
-        feat_props = ["dummyFeature"]
 
-    # Build node projection with properties for each label
+    projection_props, train_feat_props = _resolve_feature_properties(gs)
     node_projection = {
-        label: {"properties": feat_props}
+        label: {"properties": projection_props.get(label, train_feat_props)}
         for label in labels
     }
 
@@ -68,7 +99,10 @@ def project_graph(neo4j: Neo4jClient, cfg: dict) -> None:
             "relationshipTypes": rels,
         },
     )
-    LOG.info("graph projected", extra={"graph": graph_name, "properties": feat_props})
+    LOG.info(
+        "graph projected",
+        extra={"graph": graph_name, "train_feature_properties": train_feat_props},
+    )
 
 
 def _graph_exists(neo4j: Neo4jClient, graph_name: str) -> bool:
@@ -127,11 +161,7 @@ def train_and_write(neo4j: Neo4jClient, cfg: dict) -> None:
     model_name = gs["model_name"]
     write_prop = gs["write_property"]
     emb_dim = gs["embedding_dimension"]
-    feat_props = gs.get("feature_properties") or []
-    use_dummy = gs.get("use_dummy_feature_fallback", True)
-
-    if not feat_props and use_dummy:
-        feat_props = ["dummyFeature"]
+    _, feat_props = _resolve_feature_properties(gs)
 
     if not feat_props:
         raise ValueError(

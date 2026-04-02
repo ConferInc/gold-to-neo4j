@@ -12,6 +12,8 @@ tables:
   products:
     label: Product
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: updated_at
     columns:
       - id
@@ -59,4 +61,167 @@ tables:
       - updated_at
       - source_system
 
-relationships: []
+  vendors:
+    label: Vendor
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: updated_at
+    columns:
+      - id
+      - name
+      - slug
+      - vendor_type
+      - country
+      - industry
+      - status
+      - catalog_version
+      - contact_email
+      - created_at
+      - updated_at
+
+  product_categories:
+    label: ProductCategory
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: created_at
+    columns:
+      - id
+      - name
+      - description
+      - parent_category_id
+      - level
+      - path
+      - created_at
+
+  certifications:
+    label: Certification
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: created_at
+    columns:
+      - id
+      - code
+      - name
+      - description
+      - category
+      - region
+      - created_at
+
+  product_ingredients:
+    skip_upsert: true
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    columns:
+      - id
+      - product_id
+      - ingredient_id
+
+  product_dietary_preferences:
+    skip_upsert: true
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    safety_critical: true
+    columns:
+      - id
+      - product_id
+      - diet_id
+
+  product_certifications:
+    skip_upsert: true
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    columns:
+      - id
+      - product_id
+      - certification_id
+
+  product_allergens:
+    skip_upsert: true
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    safety_critical: true
+    columns:
+      - id
+      - product_id
+      - allergen_id
+
+  # Reference only — loaded by ingredients layer
+  ingredients:
+    skip_upsert: true
+    label: Ingredient
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    columns:
+      - id
+
+  # Reference only — loaded by customers layer
+  dietary_preferences:
+    skip_upsert: true
+    label: Dietary_Preferences
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    columns:
+      - id
+
+  # Reference only — loaded by customers layer
+  allergens:
+    skip_upsert: true
+    label: Allergens
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    columns:
+      - id
+
+relationships:
+  - name: product_sold_by_vendor
+    type: SOLD_BY_VENDOR
+    source_table: products
+    target_table: vendors
+    join_table: products
+    join_source_key: id
+    join_target_key: vendor_id
+    updated_at: updated_at
+
+  - name: product_contains_ingredient
+    type: CONTAINS_INGREDIENT
+    source_table: products
+    target_table: ingredients
+    join_table: product_ingredients
+    join_source_key: product_id
+    join_target_key: ingredient_id
+
+  - name: product_compatible_with_diet
+    type: COMPATIBLE_WITH_DIET
+    source_table: products
+    target_table: dietary_preferences
+    join_table: product_dietary_preferences
+    join_source_key: product_id
+    join_target_key: diet_id
+
+  - name: product_has_certification
+    type: HAS_CERTIFICATION
+    source_table: products
+    target_table: certifications
+    join_table: product_certifications
+    join_source_key: product_id
+    join_target_key: certification_id
+
+  - name: product_has_allergen
+    type: HAS_ALLERGEN
+    source_table: products
+    target_table: allergens
+    join_table: product_allergens
+    join_source_key: product_id
+    join_target_key: allergen_id
+  
+   

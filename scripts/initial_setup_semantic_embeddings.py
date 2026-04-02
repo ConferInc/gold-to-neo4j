@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -26,6 +27,7 @@ LOG = get_logger(__name__)
 
 def main() -> int:
     load_dotenv(ROOT / ".env", override=True)
+    api_base = os.getenv("LITELLM_BASE_URL") or os.getenv("OPENAI_API_BASE")
     config = load_embedding_config()
     rules = get_semantic_rules(config)
     write_property = config.get("semantic", {}).get("write_property", "semanticEmbedding")
@@ -56,6 +58,7 @@ def main() -> int:
                     label,
                     rows,
                     write_property=write_property,
+                    api_base=api_base,
                 )
                 batch_updates += updated
                 LOG.info(
