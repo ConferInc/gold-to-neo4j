@@ -131,21 +131,6 @@ tables:
       - description
       - created_at
 
-  certifications:
-    label: Certificates
-    primary_key: id
-    schema_contract:
-      skip_validation: true
-    updated_at: created_at
-    columns:
-      - id
-      - code
-      - name
-      - description
-      - category
-      - region
-      - created_at
-
   households:
     label: Household
     primary_key: id
@@ -816,14 +801,6 @@ relationships:
     join_table: b2b_customer_allergens
     join_source_key: b2b_customer_id
     join_target_key: allergen_id
-
-  - name: b2b_customer_follows_diet
-    type: FOLLOWS_DIET
-    source_table: b2b_customers
-    target_table: dietary_preferences
-    join_table: b2b_dietary_preferences
-    join_source_key: b2b_customer_id
-    join_target_key: diet_id
 
   - name: b2b_customer_has_condition
     type: HAS_CONDITION
