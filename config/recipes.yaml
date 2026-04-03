@@ -127,7 +127,7 @@ relationships:
     updated_at: created_at
 
   - name: recipe_belongs_to_cuisine
-    type: BELONGS_TO_CUSINE
+    type: BELONGS_TO_CUISINE
     source_table: recipes
     target_table: cuisines
     join_table: recipes

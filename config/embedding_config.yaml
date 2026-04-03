@@ -14,7 +14,6 @@ graph_sage:
     - Allergens
     - Dietary_Preferences
     - Health_Condition
-    - Certificates
     - B2C_Customer_Health_Profiles
     - B2C_Customer_Health_Conditions
     - NutritionValue
@@ -40,7 +39,7 @@ graph_sage:
     - HAS_ALLERGEN
     - HAS_HEALTH_CONDITION
     - VIEWED
-    - BELONGS_TO_CUSINE
+    - BELONGS_TO_CUISINE
     - USES_INGREDIENT
     - HAS_NUTRITION
     - CONTAINS_ITEM
@@ -84,8 +83,6 @@ graph_sage:
     Dietary_Preferences:
       - dummyFeature
     Health_Condition:
-      - dummyFeature
-    Certificates:
       - dummyFeature
     B2C_Customer_Health_Profiles:
       - bmi
@@ -158,9 +155,6 @@ semantic:
       separator: " "
     Health_Condition:
       properties: [code,name,category,description]
-      separator: " "
-    Certificates:
-      properties: [code,name,description,category]
       separator: " "
     B2C_Customer_Health_Profiles:
       properties: [activity_level,disliked_ingredients,health_goal]
@@ -252,9 +246,6 @@ vector_indexes:
     - label: Health_Condition
       property: semanticEmbedding
       dimensions: 1536
-    - label: Certificates
-      property: semanticEmbedding
-      dimensions: 1536
     - label: B2C_Customer_Health_Profiles
       property: semanticEmbedding
       dimensions: 1536
@@ -317,9 +308,6 @@ vector_indexes:
       property: graphSageEmbedding
       dimensions: 128
     - label: Health_Condition
-      property: graphSageEmbedding
-      dimensions: 128
-    - label: Certificates
       property: graphSageEmbedding
       dimensions: 128
     - label: B2C_Customer_Health_Profiles
