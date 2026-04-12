@@ -2,19 +2,151 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Dict, Iterable, List
+
+import yaml
 
 from shared.logging import get_logger
 
 LOG = get_logger(__name__)
 
+_CONFIG_ROOT = Path(__file__).resolve().parents[1] / "config"
+
+
+@lru_cache(maxsize=4)
+def _load_config(config_name: str) -> Dict[str, Any]:
+    """Load and cache a YAML config file."""
+    path = _CONFIG_ROOT / config_name
+    with path.open("r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
 
 def upsert_event(event_type: str, payload: Dict[str, Any], neo4j) -> None:
-    """Map event_type and payload into a cypher statement and execute it."""
-    # TODO: implement mapping table and cypher generation.
-    LOG.info("upsert_event", extra={"event_type": event_type})
-    _ = payload
-    _ = neo4j
+    """
+    Config-driven realtime upsert.
+
+    event_type format: "{table_name}.{insert|update|delete}"
+    payload: the full row from gold.outbox_events.payload (jsonb)
+    """
+    parts = event_type.rsplit(".", 1)
+    if len(parts) != 2:
+        LOG.warning(
+            "malformed event_type, expected 'table.op'",
+            extra={"event_type": event_type},
+        )
+        return
+
+    table_name, operation = parts
+    config = _load_config("customers.yaml")
+    table_cfg = config.get("tables", {}).get(table_name)
+
+    if not table_cfg:
+        LOG.warning("no config for table", extra={"table_name": table_name})
+        return
+
+    label = table_cfg.get("label")
+    pk = table_cfg.get("primary_key", "id")
+    pk_val = payload.get(pk)
+
+    if pk_val is None:
+        LOG.warning(
+            "missing primary key in payload",
+            extra={"table_name": table_name, "pk": pk},
+        )
+        return
+
+    # ── Node tables (have a label, not skip_upsert) ──
+    if label and not table_cfg.get("skip_upsert"):
+        if operation == "delete":
+            neo4j.execute(
+                f"MATCH (n:{label} {{{pk}: $pk_val}}) DETACH DELETE n",
+                {"pk_val": pk_val},
+            )
+        else:
+            # Build MERGE + SET from configured columns
+            columns = table_cfg.get("columns", list(payload.keys()))
+            row = {col: payload.get(col) for col in columns}
+            set_parts = [f"n.{col} = row.{col}" for col in columns if col != pk]
+            set_clause = ", ".join(set_parts) if set_parts else "n._updated = true"
+            neo4j.execute(
+                f"MERGE (n:{label} {{{pk}: row.{pk}}}) SET {set_clause}",
+                {"row": row},
+            )
+
+        LOG.info(
+            "upsert_event node",
+            extra={"label": label, "op": operation, "pk": pk_val},
+        )
+
+    # ── Join/relationship tables (skip_upsert: true) ──
+    elif table_cfg.get("skip_upsert"):
+        _upsert_relationships_for_event(
+            table_name, operation, payload, config, neo4j,
+        )
+
+    else:
+        LOG.debug(
+            "table has no label and is not skip_upsert, ignoring",
+            extra={"table_name": table_name},
+        )
+
+
+def _upsert_relationships_for_event(
+    table_name: str,
+    operation: str,
+    payload: Dict[str, Any],
+    config: Dict[str, Any],
+    neo4j,
+) -> None:
+    """Find relationships using this join table and create/delete edges."""
+    tables_cfg = config.get("tables", {})
+
+    for rel in config.get("relationships", []):
+        if rel.get("join_table") != table_name:
+            continue
+
+        rel_type = rel["type"]
+        src_tbl = rel["source_table"]
+        tgt_tbl = rel["target_table"]
+        from_label = tables_cfg[src_tbl]["label"]
+        to_label = tables_cfg[tgt_tbl]["label"]
+        from_pk = tables_cfg[src_tbl]["primary_key"]
+        to_pk = tables_cfg[tgt_tbl]["primary_key"]
+        from_val = payload.get(rel["join_source_key"])
+        to_val = payload.get(rel["join_target_key"])
+
+        # Apply filter conditions (e.g. interaction_type: viewed)
+        filters = rel.get("filters", {})
+        if filters and not all(payload.get(k) == v for k, v in filters.items()):
+            continue
+
+        if from_val is None or to_val is None:
+            continue
+
+        if operation == "delete":
+            neo4j.execute(
+                f"MATCH (a:{from_label} {{{from_pk}: $fv}})"
+                f"-[r:{rel_type}]->"
+                f"(b:{to_label} {{{to_pk}: $tv}}) DELETE r",
+                {"fv": from_val, "tv": to_val},
+            )
+        else:
+            neo4j.execute(
+                f"MATCH (a:{from_label} {{{from_pk}: $fv}}) "
+                f"MATCH (b:{to_label} {{{to_pk}: $tv}}) "
+                f"MERGE (a)-[:{rel_type}]->(b)",
+                {"fv": from_val, "tv": to_val},
+            )
+
+        LOG.info(
+            "upsert_event rel",
+            extra={
+                "rel_type": rel_type, "op": operation,
+                "from": from_val, "to": to_val,
+            },
+        )
 
 
 def _apply_filters(rows: Iterable[Dict[str, Any]], filters: Dict[str, Any]) -> List[Dict[str, Any]]:
