@@ -28,7 +28,7 @@ LOCK_DIR = ROOT / "state" / "locks"
 
 LayerFn = Callable[[], None]
 
-LAYER_ORDER: List[str] = ["recipes", "ingredients", "products", "customers"]
+LAYER_ORDER: List[str] = ["ingredients", "recipes", "products", "customers"]
 LAYER_MAIN: Dict[str, LayerFn] = {
     "recipes": recipes_main,
     "ingredients": ingredients_main,

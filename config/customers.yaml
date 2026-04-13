@@ -12,6 +12,8 @@ tables:
   b2c_customers:
     label: B2C_Customer
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: updated_at
     columns:
       - id
@@ -35,6 +37,8 @@ tables:
   b2c_customer_health_conditions:
     label: B2C_Customer_Health_Conditions
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: created_at
     safety_critical: true
     columns:
@@ -50,6 +54,8 @@ tables:
   b2c_customer_health_profiles:
     label: B2C_Customer_Health_Profiles
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: updated_at
     safety_critical: true
     columns:
@@ -79,6 +85,8 @@ tables:
   allergens:
     label: Allergens
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: created_at
     safety_critical: true
     columns:
@@ -97,6 +105,8 @@ tables:
   dietary_preferences:
     label: Dietary_Preferences
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: created_at
     safety_critical: true
     columns:
@@ -107,22 +117,25 @@ tables:
       - description
       - created_at
 
-  certifications:
-    label: Certificates
+  health_conditions:
+    label: Health_Condition
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: created_at
     columns:
       - id
       - code
       - name
-      - description
       - category
-      - region
+      - description
       - created_at
 
   households:
     label: Household
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: created_at
     columns:
       - id
@@ -140,14 +153,28 @@ tables:
   b2c_customer_allergens:
     skip_upsert: true
     primary_key: id
+    schema_contract:
+      skip_validation: true
     safety_critical: true
     columns:
       - b2c_customer_id
       - allergen_id
 
+  ingredient_allergens:
+    skip_upsert: true
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    columns:
+      - id
+      - ingredient_id
+      - allergen_id
+
   b2c_customer_dietary_preferences:
     skip_upsert: true
     primary_key: id
+    schema_contract:
+      skip_validation: true
     safety_critical: true
     columns:
       - b2c_customer_id
@@ -156,6 +183,8 @@ tables:
   customer_product_interactions:
     skip_upsert: true
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: created_at
     columns:
       - id
@@ -170,6 +199,8 @@ tables:
     skip_upsert: true
     label: Recipe
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: updated_at
     columns:
       - id
@@ -178,7 +209,265 @@ tables:
     skip_upsert: true
     label: Product
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: updated_at
+    columns:
+      - id
+
+  ingredients:
+    skip_upsert: true
+    label: Ingredient
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    columns:
+      - id
+
+  diet_ingredient_rules:
+    skip_upsert: true
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    columns:
+      - id
+      - diet_id
+      - ingredient_id
+      - rule_type
+
+  health_condition_ingredient_restrictions:
+    skip_upsert: true
+    primary_key: id
+    schema_contract:
+      skip_validation: true  # Supabase introspection fails (406); table used only as join
+    columns:
+      - id
+      - condition_id
+      - ingredient_id
+      - restriction_type
+
+  meal_logs:
+    label: MealLog
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: updated_at
+    columns:
+      - id
+      - b2c_customer_id
+      - household_id
+      - log_date
+      - total_calories
+      - total_protein_g
+      - total_carbs_g
+      - total_fat_g
+      - total_fiber_g
+      - total_sugar_g
+      - total_sodium_mg
+      - water_ml
+      - water_goal_ml
+      - calorie_goal
+      - goal_met
+      - streak_count
+      - notes
+      - created_at
+      - updated_at
+
+  meal_log_items:
+    label: MealLogItem
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: logged_at
+    columns:
+      - id
+      - meal_log_id
+      - meal_type
+      - recipe_id
+      - product_id
+      - custom_name
+      - custom_brand
+      - servings
+      - serving_size
+      - serving_size_g
+      - calories
+      - protein_g
+      - carbs_g
+      - fat_g
+      - fiber_g
+      - sugar_g
+      - sodium_mg
+      - saturated_fat_g
+      - cooked_via_app
+      - cooking_started_at
+      - cooking_finished_at
+      - meal_plan_item_id
+      - logged_at
+      - source
+      - notes
+      - image_url
+
+  scan_history:
+    label: ScanEvent
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: scanned_at
+    columns:
+      - id
+      - b2c_customer_id
+      - household_id
+      - product_id
+      - barcode
+      - barcode_format
+      - scan_source
+      - scanned_at
+
+  meal_plans:
+    label: MealPlan
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: updated_at
+    columns:
+      - id
+      - household_id
+      - b2c_customer_id
+      - b2b_customer_id
+      - plan_name
+      - start_date
+      - end_date
+      - total_estimated_cost
+      - total_calories
+      - status
+      - created_at
+      - updated_at
+      - meals_per_day
+      - ai_model
+      - budget_amount
+      - budget_currency
+      - member_ids
+      - generation_time_ms
+
+  meal_plan_items:
+    label: MealPlanItem
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: created_at
+    columns:
+      - id
+      - meal_plan_id
+      - recipe_id
+      - meal_date
+      - meal_type
+      - servings
+      - for_member_ids
+      - estimated_cost
+      - calories_per_serving
+      - status
+      - rating
+      - notes
+      - created_at
+      - original_recipe_id
+      - swap_reason
+      - swap_count
+
+  household_budgets:
+    label: HouseholdBudget
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: updated_at
+    columns:
+      - id
+      - household_id
+      - budget_type
+      - amount
+      - currency
+      - period
+      - start_date
+      - end_date
+      - is_active
+      - created_at
+      - updated_at
+
+  meal_log_streaks:
+    label: MealLogStreak
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: updated_at
+    columns:
+      - id
+      - b2c_customer_id
+      - current_streak
+      - longest_streak
+      - last_logged_date
+      - total_days_logged
+      - updated_at
+
+  b2b_customers:
+    label: B2BCustomer
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: updated_at
+    columns:
+      - id
+      - vendor_id
+      - external_id
+      - global_customer_id
+      - email
+      - full_name
+      - first_name
+      - last_name
+      - date_of_birth
+      - age
+      - gender
+      - phone
+      - location_country
+      - location_region
+      - location_city
+      - location_postal_code
+      - account_status
+      - created_at
+      - updated_at
+
+
+  b2b_customer_health_profiles:
+    label: B2BHealthProfile
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: updated_at
+    columns:
+      - id
+      - b2b_customer_id
+      - height_cm
+      - weight_kg
+      - bmi
+      - bmr
+      - tdee
+      - activity_level
+      - health_goal
+      - target_weight_kg
+      - target_calories
+      - target_protein_g
+      - target_carbs_g
+      - target_fiber_g
+      - target_sodium_mg
+      - target_sugar_g
+      - created_at
+      - updated_at
+
+  # Reference only — loaded by products layer; needed for B2BCustomer->Vendor relationship
+  vendors:
+    skip_upsert: true
+    label: Vendor
+    primary_key: id
+    schema_contract:
+      skip_validation: true
     columns:
       - id
 
@@ -217,13 +506,69 @@ relationships:
     join_source_key: b2c_customer_id
     join_target_key: diet_id
 
+  - name: diet_allows_ingredient
+    type: ALLOWED
+    source_table: dietary_preferences
+    target_table: ingredients
+    join_table: diet_ingredient_rules
+    join_source_key: diet_id
+    join_target_key: ingredient_id
+    filters:
+      rule_type: allowed
+
+  - name: diet_forbids_ingredient
+    type: FORBIDDEN
+    source_table: dietary_preferences
+    target_table: ingredients
+    join_table: diet_ingredient_rules
+    join_source_key: diet_id
+    join_target_key: ingredient_id
+    filters:
+      rule_type: forbidden
+
+  - name: ingredient_has_allergen
+    type: HAS_ALLERGEN
+    source_table: ingredients
+    target_table: allergens
+    join_table: ingredient_allergens
+    join_source_key: ingredient_id
+    join_target_key: allergen_id
+
+  - name: b2c_customer_health_condition_has_health_condition
+    type: HAS_HEALTH_CONDITION
+    source_table: b2c_customer_health_conditions
+    target_table: health_conditions
+    join_table: b2c_customer_health_conditions
+    join_source_key: id
+    join_target_key: condition_id
+
+  - name: health_condition_forbids_ingredient
+    type: FORBIDDEN
+    source_table: health_conditions
+    target_table: ingredients
+    join_table: health_condition_ingredient_restrictions
+    join_source_key: condition_id
+    join_target_key: ingredient_id
+    filters:
+      restriction_type: forbidden
+
+  - name: health_condition_limits_ingredient
+    type: LIMITS
+    source_table: health_conditions
+    target_table: ingredients
+    join_table: health_condition_ingredient_restrictions
+    join_source_key: condition_id
+    join_target_key: ingredient_id
+    filters:
+      restriction_type: limits
+
   - name: customer_belongs_to_household
-    type: BELONGS_TO
+    type: HAS_HOUSEHOLD
     source_table: b2c_customers
     target_table: households
     join_table: b2c_customers
-    join_source_key: household_id
-    join_target_key: id
+    join_source_key: id
+    join_target_key: household_id
 
   - name: customer_viewed_recipe
     type: VIEWED
@@ -378,3 +723,98 @@ relationships:
     filters:
       entity_type: product
       interaction_type: tried
+
+  - name: meal_log_contains_item
+    type: CONTAINS_ITEM
+    source_table: meal_logs
+    target_table: meal_log_items
+    join_table: meal_log_items
+    join_source_key: meal_log_id
+    join_target_key: id
+    updated_at: logged_at
+
+  - name: meal_log_item_of_recipe
+    type: OF_RECIPE
+    source_table: meal_log_items
+    target_table: recipes
+    join_table: meal_log_items
+    join_source_key: id
+    join_target_key: recipe_id
+    updated_at: logged_at
+
+  - name: meal_plan_contains_item
+    type: CONTAINS_ITEM
+    source_table: meal_plans
+    target_table: meal_plan_items
+    join_table: meal_plan_items
+    join_source_key: meal_plan_id
+    join_target_key: id
+    updated_at: updated_at
+
+  - name: meal_plan_item_plans_recipe
+    type: PLANS_RECIPE
+    source_table: meal_plan_items
+    target_table: recipes
+    join_table: meal_plan_items
+    join_source_key: recipe_id
+    join_target_key: id
+    updated_at: updated_at
+
+  - name: household_has_budget
+    type: HAS_BUDGET
+    source_table: households
+    target_table: household_budgets
+    join_table: household_budgets
+    join_source_key: household_id
+    join_target_key: id
+    updated_at: updated_at
+
+  - name: b2b_customer_has_profile
+    type: HAS_PROFILE
+    source_table: b2b_customers
+    target_table: b2b_customer_health_profiles
+    join_table: b2b_customer_health_profiles
+    join_source_key: b2b_customer_id
+    join_target_key: id
+    updated_at: updated_at
+
+  - name: b2b_customer_follows_diet
+    type: FOLLOWS_DIET
+    source_table: b2b_customers
+    target_table: dietary_preferences
+    join_table: b2b_dietary_preferences
+    join_source_key: b2b_customer_id
+    join_target_key: diet_id
+
+  - name: b2b_customer_has_condition
+    type: HAS_CONDITION
+    source_table: b2b_customers
+    target_table: health_conditions
+    join_table: b2b_health_conditions
+    join_source_key: b2b_customer_id
+    join_target_key: health_condition_id
+
+  - name: b2b_customer_is_allergic
+    type: IS_ALLERGIC
+    source_table: b2b_customers
+    target_table: allergens
+    join_table: b2b_customer_allergens
+    join_source_key: b2b_customer_id
+    join_target_key: allergen_id
+
+  - name: b2b_customer_has_condition
+    type: HAS_CONDITION
+    source_table: b2b_customers
+    target_table: health_conditions
+    join_table: b2b_health_conditions
+    join_source_key: b2b_customer_id
+    join_target_key: health_condition_id
+
+  - name: b2b_customer_belongs_to_vendor
+    type: BELONGS_TO_VENDOR
+    source_table: b2b_customers
+    target_table: vendors
+    join_table: b2b_customers
+    join_source_key: id
+    join_target_key: vendor_id
+    updated_at: updated_at

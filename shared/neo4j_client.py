@@ -77,7 +77,7 @@ class Neo4jClient:
     def execute(self, cypher: str, parameters: Optional[Dict[str, Any]] = None) -> None:
         """Execute a cypher statement."""
         with self._driver.session(database=self.database) as session:
-            session.run(cypher, parameters or {})
+            session.run(cypher, parameters or {}).consume()
 
     def query(self, cypher: str, parameters: Optional[Dict[str, Any]] = None) -> list[Dict[str, Any]]:
         """Execute a cypher statement and return rows as dicts."""
@@ -88,24 +88,24 @@ class Neo4jClient:
     def execute_many(self, cypher: str, rows: Iterable[Dict[str, Any]]) -> None:
         """Execute a cypher statement using an UNWIND batch."""
         with self._driver.session(database=self.database) as session:
-            session.run(cypher, {"rows": list(rows)})
+            session.run(cypher, {"rows": list(rows)}).consume()
 
     def count_nodes(self, label: str) -> int:
         """Count nodes for a given label."""
-        cypher = f"MATCH (n:{label}) RETURN count(n) AS count"
+        cypher = f"MATCH (n:{label}) RETURN count(n) AS cnt"
         with self._driver.session(database=self.database) as session:
             result = session.run(cypher).single()
-            if result and "count" in result:
-                return int(result["count"])
+            if result:
+                return int(result["cnt"])
         return 0
 
     def count_relationships(self, rel_type: str) -> int:
         """Count relationships for a given type."""
-        cypher = f"MATCH ()-[r:{rel_type}]->() RETURN count(r) AS count"
+        cypher = f"MATCH ()-[r:{rel_type}]->() RETURN count(r) AS cnt"
         with self._driver.session(database=self.database) as session:
             result = session.run(cypher).single()
-            if result and "count" in result:
-                return int(result["count"])
+            if result:
+                return int(result["cnt"])
         return 0
 
     def fetch_sample_ids(self, label: str, key: str, limit: int = 200) -> list[str]:

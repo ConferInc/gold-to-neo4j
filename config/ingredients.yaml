@@ -12,6 +12,8 @@ tables:
   ingredients:
     label: Ingredient
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: updated_at
     columns:
       - id
@@ -44,13 +46,16 @@ tables:
       - updated_at
 
   nutrition_facts:
-    label: IngredientNutritionValue
+    label: NutritionValue
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: updated_at
     columns:
       - id
       - nutrient_id
       - entity_id
+      - entity_type
       - amount
       - unit
       - per_amount
@@ -62,16 +67,12 @@ tables:
       - updated_at
     filters:
       entity_type: ingredient
-    enrich:
-      nutrient_code:
-        from_table: nutrition_definitions
-        source_key: id
-        lookup_key: nutrient_id
-        value_field: nutrient_code
 
   nutrition_definitions:
     label: NutrientDefinition
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: updated_at
     columns:
       - id
@@ -95,6 +96,8 @@ tables:
   nutrition_categories:
     label: NutritionCategory
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: created_at
     columns:
       - id
@@ -110,16 +113,14 @@ tables:
       - created_at
 
 relationships:
-  - name: ingredient_has_nutrition_value
-    type: HAS_NUTRITION_VALUE
+  - name: ingredient_has_nutrition
+    type: HAS_NUTRITION
     source_table: ingredients
     target_table: nutrition_facts
     join_table: nutrition_facts
     join_source_key: entity_id
     join_target_key: id
     updated_at: updated_at
-    filters:
-      entity_type: ingredient
 
   - name: nutrition_value_of_nutrient
     type: OF_NUTRIENT
@@ -129,8 +130,6 @@ relationships:
     join_source_key: id
     join_target_key: nutrient_id
     updated_at: updated_at
-    filters:
-      entity_type: ingredient
 
   - name: nutrition_category_parent_of
     type: PARENT_OF

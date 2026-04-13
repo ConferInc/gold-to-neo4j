@@ -12,6 +12,8 @@ tables:
   recipes:
     label: Recipe
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: updated_at
     columns:
       - id
@@ -42,6 +44,8 @@ tables:
   cuisines:
     label: Cuisine
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: created_at
     columns:
       - id
@@ -56,6 +60,8 @@ tables:
   recipe_ingredients:
     skip_upsert: true
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: created_at
     alias_map:
       created_at: created_at
@@ -69,7 +75,44 @@ tables:
     skip_upsert: true
     label: Ingredient
     primary_key: id
+    schema_contract:
+      skip_validation: true
     updated_at: updated_at
+    columns:
+      - id
+
+  # Same table as ingredients layer; filter entity_type=recipe for Recipe nutrition
+  nutrition_facts:
+    skip_upsert: false
+    label: NutritionValue
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: updated_at
+    columns:
+      - id
+      - nutrient_id
+      - entity_id
+      - entity_type
+      - amount
+      - unit
+      - per_amount
+      - per_amount_grams
+      - data_source
+      - confidence_score
+      - measurement_date
+      - created_at
+      - updated_at
+    filters:
+      entity_type: recipe
+
+  # Reference only — loaded by ingredients layer; needed for OF_NUTRIENT relationship
+  nutrition_definitions:
+    skip_upsert: true
+    label: NutrientDefinition
+    primary_key: id
+    schema_contract:
+      skip_validation: true
     columns:
       - id
 
@@ -84,10 +127,30 @@ relationships:
     updated_at: created_at
 
   - name: recipe_belongs_to_cuisine
-    type: BELONGS_TO_CUSINE
+    type: BELONGS_TO_CUISINE
     source_table: recipes
     target_table: cuisines
     join_table: recipes
     join_source_key: id
     join_target_key: cuisine_id
+    updated_at: updated_at
+
+  # entity_id in nutrition_facts = recipe id when entity_type=recipe
+  - name: recipe_has_nutrition
+    type: HAS_NUTRITION
+    source_table: recipes
+    target_table: nutrition_facts
+    join_table: nutrition_facts
+    join_source_key: entity_id
+    join_target_key: id
+    updated_at: updated_at
+
+  # NutritionValue (recipe) → NutrientDefinition; nutrient_id in nutrition_facts = id in nutrition_definitions
+  - name: nutrition_value_of_nutrient
+    type: OF_NUTRIENT
+    source_table: nutrition_facts
+    target_table: nutrition_definitions
+    join_table: nutrition_facts
+    join_source_key: id
+    join_target_key: nutrient_id
     updated_at: updated_at

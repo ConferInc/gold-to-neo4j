@@ -13,26 +13,112 @@ graph_sage:
     - Household
     - Allergens
     - Dietary_Preferences
+    - Health_Condition
     - B2C_Customer_Health_Profiles
     - B2C_Customer_Health_Conditions
+    - NutritionValue
+    - NutrientDefinition
+    - NutritionCategory
+    - MealLog
+    - MealLogItem
+    - MealPlan
+    - HouseholdBudget
+    - MealLogStreak
+    - Vendor
+    - ProductCategory
+    - Certification
+    - B2BCustomer
+    - B2BHealthProfile
   relationship_types:
     - HAS_PROFILE
     - HAS_CONDITION
     - IS_ALLERGIC
     - FOLLOWS_DIET
-    - BELONGS_TO
+    - ALLOWED
+    - FORBIDDEN
+    - HAS_ALLERGEN
+    - HAS_HEALTH_CONDITION
     - VIEWED
-    - RATED
-    - SAVED
-    - REJECTED
-    - WHITELISTED
-    - BLACKLISTED
-    - TRIED
+    - BELONGS_TO_CUISINE
     - USES_INGREDIENT
-    - BELONGS_TO_CUSINE
-  # Numeric properties to use as GraphSAGE features (must exist on all projected nodes)
-  # Add your node numeric properties here
-  feature_properties: []
+    - HAS_NUTRITION
+    - CONTAINS_ITEM
+    - HAS_BUDGET
+    - OF_NUTRIENT
+    - PARENT_OF
+    - SOLD_BY_VENDOR
+    - CONTAINS_INGREDIENT
+    - COMPATIBLE_WITH_DIET
+    - HAS_CERTIFICATION
+    - SAVED
+    - OF_RECIPE
+    - BELONGS_TO_VENDOR
+  # Numeric properties for GraphSAGE features. Per-label overrides below.
+  feature_properties:
+    - dummyFeature
+  # Per-label numeric features (labels not listed use dummyFeature)
+  label_feature_properties:
+    Recipe:
+      - servings
+    Ingredient:
+      - calcium_mg
+      - iron_mg
+      - magnesium_mg
+      - potassium_mg
+      - sodium_mg
+      - vitamin_d_mcg
+      - protein_g
+      - total_fat_g
+      - total_carbs_g
+    Product:
+      - dummyFeature
+    Cuisine:
+      - dummyFeature
+    B2C_Customer:
+      - dummyFeature
+    Household:
+      - total_members
+    Allergens:
+      - dummyFeature
+    Dietary_Preferences:
+      - dummyFeature
+    Health_Condition:
+      - dummyFeature
+    B2C_Customer_Health_Profiles:
+      - bmi
+      - weight_kg
+      - height_cm
+    B2C_Customer_Health_Conditions:
+      - dummyFeature
+    NutritionValue:
+      - amount
+    NutrientDefinition:
+      - rank
+    NutritionCategory:
+      - hierarchy_level
+      - sort_order
+    MealLog:
+      - dummyFeature
+    MealLogItem:
+      - dummyFeature
+    MealPlan:
+      - dummyFeature
+    HouseholdBudget:
+      - dummyFeature
+    MealLogStreak:
+      - dummyFeature
+    Vendor:
+      - dummyFeature
+    ProductCategory:
+      - level
+    Certification:
+      - dummyFeature
+    B2BCustomer:
+      - dummyFeature
+    B2BHealthProfile:
+      - bmi
+      - weight_kg
+      - height_cm
   # Fallback if nodes lack numeric features - will add dummyFeature = 1.0
   use_dummy_feature_fallback: true
   model_name: b2c_customer_model
@@ -40,24 +126,87 @@ graph_sage:
   write_property: graphSageEmbedding
 
 semantic:
+  # Embeddings are generated in Python (LiteLLM) and written to Neo4j (no GenAI plugin required)
   # Per-label text assembly: which properties to concatenate for embedding
   label_text_rules:
     Recipe:
-      properties: [title, description, meal_type, instructions]
+      properties: [title, description, difficulty, instructions]
       separator: " "
     Ingredient:
       properties: [name, category]
       separator: " "
     Product:
-      properties: [name, brand, description]
+      properties: [name, brand, status]
       separator: " "
     B2C_Customer:
-      properties: [health_goal, activity_level, intolerances]
+      properties: [email, full_name, gender]
       separator: " "
     Cuisine:
-      properties: [name, region]
+      properties: [code,name]
+      separator: " "
+    Household:
+      properties: [account_status,household_name,household_type]
+      separator: " "
+    Allergens:
+      properties: [category,code,description,name]
+      separator: " "
+    Dietary_Preferences:
+      properties: [category,code,description,name]
+      separator: " "
+    Health_Condition:
+      properties: [code,name,category,description]
+      separator: " "
+    B2C_Customer_Health_Profiles:
+      properties: [activity_level,disliked_ingredients,health_goal]
+      separator: " "
+    B2C_Customer_Health_Conditions:
+      properties: [is_active]
+      separator: " "
+    NutritionValue:
+      properties: [entity_type,nutrient_code]
+      separator: " "
+    NutrientDefinition:
+      properties: [category,nutrient_code,nutrient_name,subcategory]
+      separator: " "
+    NutritionCategory:
+      properties: [category_name,description,subcategory_name,display_name,icon_name]
+      separator: " "
+    MealLog:
+      properties: []
+      separator: " "
+    MealLogItem:
+      properties: [meal_type]
+      separator: " "
+    MealPlan:
+      properties: [meals_per_day]
+      separator: " "
+    HouseholdBudget:
+      properties: [period, budget_type]
+      separator: " "
+    MealLogStreak:
+      properties: []
+      separator: " "
+    Vendor:
+      properties: [name, slug, status]
+      separator: " "
+    ProductCategory:
+      properties: [name]
+      separator: " "
+    Certification:
+      properties: [code, name, description, category, region]
+      separator: " "
+    B2BCustomer:
+      properties: [email, full_name, gender, account_status]
+      separator: " "
+    B2BHealthProfile:
+      properties: []
       separator: " "
   write_property: semanticEmbedding
+
+fulltext_indexes:
+  - name: recipe_title_ft
+    label: Recipe
+    properties: [title]
 
 vector_indexes:
   semantic:
@@ -70,7 +219,139 @@ vector_indexes:
     - label: Product
       property: semanticEmbedding
       dimensions: 1536
+    - label: B2C_Customer
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: Cuisine
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: NutritionValue
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: NutrientDefinition
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: NutritionCategory
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: Household
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: Allergens
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: Dietary_Preferences
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: Health_Condition
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: B2C_Customer_Health_Profiles
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: B2C_Customer_Health_Conditions
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: MealLog
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: MealLogItem
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: MealPlan
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: HouseholdBudget
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: MealLogStreak
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: Vendor
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: ProductCategory
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: Certification
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: B2BCustomer
+      property: semanticEmbedding
+      dimensions: 1536
+    - label: B2BHealthProfile
+      property: semanticEmbedding
+      dimensions: 1536
   structural:
     - label: B2C_Customer
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Recipe
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Product
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Ingredient
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Cuisine
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Household
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Allergens
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Dietary_Preferences
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Health_Condition
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: B2C_Customer_Health_Profiles
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: B2C_Customer_Health_Conditions
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: NutritionValue
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: NutrientDefinition
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: NutritionCategory
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: MealLog
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: MealLogItem
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: MealPlan
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: HouseholdBudget
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: MealLogStreak
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Vendor
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: ProductCategory
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: Certification
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: B2BCustomer
+      property: graphSageEmbedding
+      dimensions: 128
+    - label: B2BHealthProfile
       property: graphSageEmbedding
       dimensions: 128

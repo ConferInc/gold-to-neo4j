@@ -141,6 +141,9 @@ def _validate_feature_properties(
     missing: Dict[str, List[str]] = {}
     if not feature_properties:
         return True, missing
+    # dummyFeature is generated in setup and is the supported universal fallback.
+    if set(feature_properties) == {"dummyFeature"}:
+        return True, missing
 
     schema_rows = _fetch_schema_properties(neo4j)
     if schema_rows:
@@ -270,16 +273,25 @@ def resolve_graph_sage_config(neo4j: Neo4jClient, config: Dict[str, Any]) -> Dic
     if empty_rels:
         LOG.warning("relationship types with zero edges detected", extra={"types": empty_rels})
 
+    label_feat = gs.get("label_feature_properties") or {}
     feature_props = list(gs.get("feature_properties") or [])
     use_dummy = bool(gs.get("use_dummy_feature_fallback", True))
-    valid, missing = _validate_feature_properties(neo4j, resolved_labels_final, feature_props)
-    if feature_props and not valid:
+    if label_feat:
+        valid, missing = True, {}
+        for label in resolved_labels_final:
+            props = label_feat.get(label) or feature_props or ["dummyFeature"]
+            v, m = _validate_feature_properties(neo4j, [label], props)
+            if not v and m:
+                missing.update(m)
+                valid = False
+    else:
+        valid, missing = _validate_feature_properties(neo4j, resolved_labels_final, feature_props)
+    if (feature_props or label_feat) and not valid:
         if use_dummy:
             LOG.warning(
-                "feature properties missing or non-numeric; falling back to dummyFeature",
+                "feature properties missing or non-numeric; dummyFeature used as fallback",
                 extra={"missing": missing},
             )
-            gs["feature_properties"] = []
         else:
             raise EmbeddingConfigError(f"feature properties invalid: {missing}")
 

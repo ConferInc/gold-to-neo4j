@@ -1,0 +1,1205 @@
+(.venv) (base) priyapatil@Mac-22461 Gold-to-Neo4j %    python scripts/estimate_embedding_cost.py
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SEMANTIC EMBEDDING — COST ESTIMATOR
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  Model   : text-embedding-3-small
+  Price   : $0.0200 per 1,000,000 tokens  (20.0000 per 1,000 tokens)
+  Tokens  : measured from real Neo4j data  (~4 chars per token)
+  Rule    : only NEW nodes are embedded — existing semanticEmbedding is never re-billed
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 1 — COST PER NODE LABEL  (per 100 / 500 / 1K / 5K / 10K new nodes)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  Embeddings are only generated for NEW nodes — existing ones are skipped.
+  Token averages are measured from your real Neo4j data.
+
+  Label                                         100          500           1K           5K          10K   Avg tok  Text properties
+
+  ── RECIPES layer ──────────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  Recipe                                  $0.000390      $0.0020      $0.0039      $0.0195      $0.0390       195  title, description, difficulty, ...
+  Cuisine                                 $0.000008    $0.000040    $0.000080    $0.000400    $0.000800         4  code, name
+
+  ── INGREDIENTS layer ──────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  Ingredient                              $0.000012    $0.000060    $0.000120    $0.000600      $0.0012         6  name, category
+  NutritionValue                          $0.000012    $0.000060    $0.000120    $0.000600      $0.0012         6  entity_type, nutrient_code
+  NutrientDefinition                      $0.000030    $0.000150    $0.000300      $0.0015      $0.0030        15  category, nutrient_code, nutrien...
+  NutritionCategory                       $0.000066    $0.000330    $0.000660      $0.0033      $0.0066        33  category_name, description, subc...
+
+  ── PRODUCTS layer  (+ planned future labels shown below) ─────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  Product                                 $0.000032    $0.000160    $0.000320      $0.0016      $0.0032        16  name, brand, status
+
+  ── CUSTOMERS layer ────────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  B2C_Customer                            $0.000022    $0.000110    $0.000220      $0.0011      $0.0022        11  email, full_name, gender
+  Household                               $0.000020    $0.000100    $0.000200      $0.0010      $0.0020        10  account_status, household_name, ...
+  B2C_Customer_Health_Profiles            $0.000018    $0.000090    $0.000180    $0.000900      $0.0018         9  activity_level, disliked_ingredi...
+  B2C_Customer_Health_Conditions          $0.000022    $0.000110    $0.000220      $0.0011      $0.0022        11  email, full_name, gender
+  Allergens                               $0.000026    $0.000130    $0.000260      $0.0013      $0.0026        13  category, code, description, name
+  Dietary_Preferences                     $0.000076    $0.000380    $0.000760      $0.0038      $0.0076        38  category, code, description, name
+  HouseholdBudget                         $0.000008    $0.000040    $0.000080    $0.000400    $0.000800         4  period, budget_type
+  MealLogStreak                               $0.00        $0.00        $0.00        $0.00        $0.00         —  (no text properties — zero cost)
+
+  ── INTERACTION / REALTIME layer  (grows with customer activity) ─────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  MealLog                                     $0.00        $0.00        $0.00        $0.00        $0.00         —  (no text properties — zero cost)
+  MealLogItem                             $0.000004    $0.000020    $0.000040    $0.000200    $0.000400         2  meal_type
+  ScanEvent                               $0.000006    $0.000030    $0.000060    $0.000300    $0.000600         3  barcode_format, scan_source
+  MealPlan                                $0.000012    $0.000060    $0.000120    $0.000600      $0.0012         6  meals_per_day
+  MealPlanItem                            $0.000008    $0.000040    $0.000080    $0.000400    $0.000800         4  meal_type, status
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 2 — TOKEN BREAKDOWN PER LABEL  (what text is being embedded)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  Shows exactly which properties are concatenated, avg chars, and token count.
+
+  Label                                   Avg chars  Avg tokens  Max tokens  Visual
+───────────────────────────────────────────────────────────────────────────────────────────────
+  Recipe                                        780         195         415  █████████████████████████
+                                           props: title, description, difficulty, instr...
+
+  Cuisine                                        16           4           8  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: code, name
+
+  Ingredient                                     24           6           8  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: name, category
+
+  NutritionValue                                 24           6           8  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: entity_type, nutrient_code
+
+  NutrientDefinition                             60          15          25  ██░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: category, nutrient_code, nutrient_nam...
+
+  NutritionCategory                             132          33          52  ████░░░░░░░░░░░░░░░░░░░░░
+                                           props: category_name, description, subcatego...
+
+  Product                                        64          16          26  ██░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: name, brand, status
+
+  B2C_Customer                                   44          11          12  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: email, full_name, gender
+
+  Household                                      40          10          12  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: account_status, household_name, house...
+
+  B2C_Customer_Health_Profiles                   36           9          17  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: activity_level, disliked_ingredients,...
+
+  B2C_Customer_Health_Conditions                 44          11          12  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: email, full_name, gender
+
+  Allergens                                      52          13          28  ██░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: category, code, description, name
+
+  Dietary_Preferences                           152          38          55  █████░░░░░░░░░░░░░░░░░░░░
+                                           props: category, code, description, name
+
+  HouseholdBudget                                16           4           4  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: period, budget_type
+
+  MealLogStreak                                   —           0           0  (skipped — no text)
+  MealLog                                         —           0           0  (skipped — no text)
+  MealLogItem                                     8           2           3  ░░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: meal_type
+
+  ScanEvent                                      12           3           4  ░░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: barcode_format, scan_source
+
+  MealPlan                                       24           6           7  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: meals_per_day
+
+  MealPlanItem                                   16           4           5  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: meal_type, status
+
+  Note: 1 token ≈ 4 characters of English text (OpenAI rule-of-thumb).
+        Recipe has the most tokens because 'instructions' is long prose (~600+ chars).
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 3 — CUSTOMER REGISTRATION COST  (one-time, per new signup)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  When a customer registers, these nodes are created and embedded ONCE.
+  They are only re-embedded if the customer updates their profile text.
+
+  Node created on signup                  Nodes   Tokens         Cost  Note
+───────────────────────────────────────────────────────────────────────────────────────────────
+  B2C_Customer                                1       11  $0.00000022  1 per customer
+  Household                                   1       10  $0.00000020  1 per customer (shared households possible)
+  B2C_Customer_Health_Profiles                1        9  $0.00000018  1 per customer
+  B2C_Customer_Health_Conditions              2       22  $0.00000044  avg 2 conditions per customer
+  HouseholdBudget                             1        4  $0.00000008  1 per household
+  MealLogStreak                               1 0 (no text)        $0.00  1 per customer — NO TEXT, $0
+───────────────────────────────────────────────────────────────────────────────────────────────
+  TOTAL per new customer signup                       56    $0.000001
+
+  Scaling — cost for N new customers registering:
+    New customers    Total tokens    Cost (avg)   Cost (worst-case)
+  ───────────────  ──────────────  ────────────  ──────────────────
+              100           5,600     $0.000112           $0.000138
+              500          28,000     $0.000560           $0.000690
+            1,000          56,000       $0.0011             $0.0014
+            5,000         280,000       $0.0056             $0.0069
+           10,000         560,000       $0.0112             $0.0138
+           50,000       2,800,000       $0.0560             $0.0690
+          100,000       5,600,000       $0.1120             $0.1380
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 4 — REALTIME / INTERACTION NODE COST  (monthly recurring)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  These nodes are created every time a customer logs a meal, scans a product,
+  or generates a meal plan. Cost recurs every month.
+
+  Activity assumptions (edit in script if your usage differs):
+  Node                    Events/cust/mo  Nodes/event  Nodes/cust/mo  Avg tok   Cost/cust/mo
+───────────────────────────────────────────────────────────────────────────────────────────────
+  MealLog                             30            1             30        —   $0 (no text)  ← 30 meal logs / customer / month
+  MealLogItem                         30            4            120        2      $0.000005  ← 4 items per meal log on average
+  ScanEvent                            5            1              5        3    $0.00000030  ← 5 barcode scans / customer / month
+  MealPlan                             2            1              2        6    $0.00000024  ← 2 meal plans generated / customer / month
+  MealPlanItem                         2           21             42        4      $0.000003  ← 21 items per plan (3 meals × 7 days)
+───────────────────────────────────────────────────────────────────────────────────────────────
+  TOTAL per customer per month                                                  435      $0.000009
+
+  Monthly + annual cost at different active customer counts:
+   Active customers   Monthly tokens   Monthly cost   Annual cost
+  ─────────────────  ───────────────  ─────────────  ────────────
+                100           43,500      $0.000870       $0.0104
+                500          217,500        $0.0043       $0.0522
+              1,000          435,000        $0.0087       $0.1044
+              5,000        2,175,000        $0.0435       $0.5220
+             10,000        4,350,000        $0.0870         $1.04
+             50,000       21,750,000        $0.4350         $5.22
+            100,000       43,500,000        $0.8700        $10.44
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 5 — CATALOG GROWTH COST  (as you add more recipes, products, ingredients)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  You start with some data today. As you grow the catalog, each NEW batch
+  of nodes costs exactly this much to embed. Already-embedded nodes = $0.
+
+  ┌─ Recipe  [recipes layer]
+  │  Text embedded : title, description, difficulty, instructions
+  │  Avg tokens    : 195 tok/node  (~780 chars)
+  │  Note          : Rich text (title+desc+instructions). Most expensive per node.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100        19,500     $0.000390           $0.000830         $0.000390  ← START
+  │           500        78,000       $0.0016             $0.0033           $0.0019  
+  │         1,000        97,500       $0.0020             $0.0042           $0.0039  
+  │         2,000       195,000       $0.0039             $0.0083           $0.0078  
+  │         5,000       585,000       $0.0117             $0.0249           $0.0195  
+  │        10,000       975,000       $0.0195             $0.0415           $0.0390  
+  │        50,000     7,800,000       $0.1560             $0.3320           $0.1950  
+  │
+  │  $1 embeds approximately 256,410 Recipe nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ Product  [products layer]
+  │  Text embedded : name, brand, status
+  │  Avg tokens    : 16 tok/node  (~64 chars)
+  │  Note          : Name+brand+status. Scales with vendor catalog.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100         1,600     $0.000032           $0.000052         $0.000032  ← START
+  │           500         6,400     $0.000128           $0.000208         $0.000160  
+  │         1,000         8,000     $0.000160           $0.000260         $0.000320  
+  │         2,000        16,000     $0.000320           $0.000520         $0.000640  
+  │         5,000        48,000     $0.000960             $0.0016           $0.0016  
+  │        10,000        80,000       $0.0016             $0.0026           $0.0032  
+  │        50,000       640,000       $0.0128             $0.0208           $0.0160  
+  │
+  │  $1 embeds approximately 3,125,000 Product nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ Ingredient  [ingredients layer]
+  │  Text embedded : name, category
+  │  Avg tokens    : 6 tok/node  (~24 chars)
+  │  Note          : Name+category. Short text.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100           600     $0.000012           $0.000016         $0.000012  ← START
+  │           500         2,400     $0.000048           $0.000064         $0.000060  
+  │         1,000         3,000     $0.000060           $0.000080         $0.000120  
+  │         2,000         6,000     $0.000120           $0.000160         $0.000240  
+  │         5,000        18,000     $0.000360           $0.000480         $0.000600  
+  │        10,000        30,000     $0.000600           $0.000800           $0.0012  
+  │        50,000       240,000       $0.0048             $0.0064           $0.0060  
+  │
+  │  $1 embeds approximately 8,333,333 Ingredient nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ NutritionValue  [ingredients layer]
+  │  Text embedded : entity_type, nutrient_code
+  │  Avg tokens    : 6 tok/node  (~24 chars)
+  │  Note          : ~10 rows per ingredient. Grows with ingredient catalog.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100           600     $0.000012           $0.000016         $0.000012  ← START
+  │           500         2,400     $0.000048           $0.000064         $0.000060  
+  │         1,000         3,000     $0.000060           $0.000080         $0.000120  
+  │         2,000         6,000     $0.000120           $0.000160         $0.000240  
+  │         5,000        18,000     $0.000360           $0.000480         $0.000600  
+  │        10,000        30,000     $0.000600           $0.000800           $0.0012  
+  │        50,000       240,000       $0.0048             $0.0064           $0.0060  
+  │
+  │  $1 embeds approximately 8,333,333 NutritionValue nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ NutrientDefinition  [ingredients layer]
+  │  Text embedded : category, nutrient_code, nutrient_name, subcategory
+  │  Avg tokens    : 15 tok/node  (~60 chars)
+  │  Note          : Fixed taxonomy ~117–150 rows. One-time cost.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100         1,500     $0.000030           $0.000050         $0.000030  ← START
+  │           500         6,000     $0.000120           $0.000200         $0.000150  
+  │         1,000         7,500     $0.000150           $0.000250         $0.000300  
+  │         2,000        15,000     $0.000300           $0.000500         $0.000600  
+  │         5,000        45,000     $0.000900             $0.0015           $0.0015  
+  │        10,000        75,000       $0.0015             $0.0025           $0.0030  
+  │        50,000       600,000       $0.0120             $0.0200           $0.0150  
+  │
+  │  $1 embeds approximately 3,333,333 NutrientDefinition nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ NutritionCategory  [ingredients layer]
+  │  Text embedded : category_name, description, subcategory_name, display_name, icon_name
+  │  Avg tokens    : 33 tok/node  (~132 chars)
+  │  Note          : Fixed ~30–80 rows. One-time cost.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100         3,300     $0.000066           $0.000104         $0.000066  ← START
+  │           500        13,200     $0.000264           $0.000416         $0.000330  
+  │         1,000        16,500     $0.000330           $0.000520         $0.000660  
+  │         2,000        33,000     $0.000660             $0.0010           $0.0013  
+  │         5,000        99,000       $0.0020             $0.0031           $0.0033  
+  │        10,000       165,000       $0.0033             $0.0052           $0.0066  
+  │        50,000     1,320,000       $0.0264             $0.0416           $0.0330  
+  │
+  │  $1 embeds approximately 1,515,151 NutritionCategory nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ Dietary_Preferences  [customers layer]
+  │  Text embedded : category, code, description, name
+  │  Avg tokens    : 38 tok/node  (~152 chars)
+  │  Note          : Fixed ~32 rows. One-time cost.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100         3,800     $0.000076           $0.000110         $0.000076  ← START
+  │           500        15,200     $0.000304           $0.000440         $0.000380  
+  │         1,000        19,000     $0.000380           $0.000550         $0.000760  
+  │         2,000        38,000     $0.000760             $0.0011           $0.0015  
+  │         5,000       114,000       $0.0023             $0.0033           $0.0038  
+  │        10,000       190,000       $0.0038             $0.0055           $0.0076  
+  │        50,000     1,520,000       $0.0304             $0.0440           $0.0380  
+  │
+  │  $1 embeds approximately 1,315,789 Dietary_Preferences nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ Allergens  [customers layer]
+  │  Text embedded : category, code, description, name
+  │  Avg tokens    : 13 tok/node  (~52 chars)
+  │  Note          : Fixed ~20 rows. One-time cost.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100         1,300     $0.000026           $0.000056         $0.000026  ← START
+  │           500         5,200     $0.000104           $0.000224         $0.000130  
+  │         1,000         6,500     $0.000130           $0.000280         $0.000260  
+  │         2,000        13,000     $0.000260           $0.000560         $0.000520  
+  │         5,000        39,000     $0.000780             $0.0017           $0.0013  
+  │        10,000        65,000       $0.0013             $0.0028           $0.0026  
+  │        50,000       520,000       $0.0104             $0.0224           $0.0130  
+  │
+  │  $1 embeds approximately 3,846,153 Allergens nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ Cuisine  [recipes layer]
+  │  Text embedded : code, name
+  │  Avg tokens    : 4 tok/node  (~16 chars)
+  │  Note          : Fixed ~15–50 rows. One-time cost.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100           400     $0.000008           $0.000016         $0.000008  ← START
+  │           500         1,600     $0.000032           $0.000064         $0.000040  
+  │         1,000         2,000     $0.000040           $0.000080         $0.000080  
+  │         2,000         4,000     $0.000080           $0.000160         $0.000160  
+  │         5,000        12,000     $0.000240           $0.000480         $0.000400  
+  │        10,000        20,000     $0.000400           $0.000800         $0.000800  
+  │        50,000       160,000       $0.0032             $0.0064           $0.0040  
+  │
+  │  $1 embeds approximately 12,500,000 Cuisine nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 6 — HOW FAR DOES $1 GO?  (nodes you can embed per dollar)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  Inverse of cost — answers: 'If I have $1 of embedding budget, how many
+  nodes of each type can I embed?'  Useful for quick budget sanity checks.
+
+  At $0.0200/1M tokens:  $1 = 50,000,000 tokens
+
+  Label                                   Avg tok   Nodes per $1  Nodes per $10  Nodes per $100
+───────────────────────────────────────────────────────────────────────────────────────────────
+
+  ── CATALOG — Recipes
+  Recipe                                      195        256,410      2,564,102      25,641,025
+  Cuisine                                       4     12,500,000    125,000,000   1,250,000,000
+
+  ── CATALOG — Ingredients & Nutrition
+  Ingredient                                    6      8,333,333     83,333,333     833,333,333
+  NutritionValue                                6      8,333,333     83,333,333     833,333,333
+  NutrientDefinition                           15      3,333,333     33,333,333     333,333,333
+  NutritionCategory                            33      1,515,151     15,151,515     151,515,151
+
+  ── CATALOG — Products
+  Product                                      16      3,125,000     31,250,000     312,500,000
+
+  ── CUSTOMER — Profile nodes (one-time per signup)
+  B2C_Customer                                 11      4,545,454     45,454,545     454,545,454
+  Household                                    10      5,000,000     49,999,999     499,999,999
+  B2C_Customer_Health_Profiles                  9      5,555,555     55,555,555     555,555,555
+  B2C_Customer_Health_Conditions               11      4,545,454     45,454,545     454,545,454
+  Allergens                                    13      3,846,153     38,461,538     384,615,384
+  Dietary_Preferences                          38      1,315,789     13,157,894     131,578,947
+  HouseholdBudget                               4     12,500,000    125,000,000   1,250,000,000
+  MealLogStreak                                 —    ∞ (no text)    ∞ (no text)     ∞ (no text)
+
+  ── INTERACTION — Activity nodes (recurring per event)
+  MealLog                                       —    ∞ (no text)    ∞ (no text)     ∞ (no text)
+  MealLogItem                                   2     25,000,000    250,000,000   2,500,000,000
+  ScanEvent                                     3     16,666,666    166,666,666   1,666,666,666
+  MealPlan                                      6      8,333,333     83,333,333     833,333,333
+  MealPlanItem                                  4     12,500,000    125,000,000   1,250,000,000
+
+  Quick reference:
+  • $1 embeds ~256,410 Recipes  or ~3,125,000 Products  or ~8,333,333 Ingredients
+  • $1 covers the embedding cost of 892,857 complete customer signups
+  • $1 covers 1 month of activity for 114,942 active customers
+  • $1 covers 1 full year of activity for 9,578 active customers
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 7 — FULL BUDGET SUMMARY  (catalog + signups + monthly activity)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  Stage                               Catalog    Signups    Monthly     Annual   Total Year 1
+                                     (1-time)   (1-time)    (recur)    (recur)  (catalog+reg+annual)
+───────────────────────────────────────────────────────────────────────────────────────────────
+  MVP  (100 customers)                $0.0040  $0.000112  $0.000870    $0.0104        $0.0146
+  Growth  (1K customers)              $0.0110    $0.0011    $0.0087    $0.1044        $0.1165
+  Scale  (10K customers)              $0.0365    $0.0112    $0.0870      $1.04          $1.09
+  Enterprise  (100K customers)        $0.1448    $0.1120    $0.8700     $10.44         $10.70
+
+  Column guide:
+    Catalog  — one-time cost to embed all recipes, products, ingredients, nutrition data
+    Signups  — one-time cost when N customers register (profile + health nodes)
+    Monthly  — recurring cost from meal logs, scans, meal plans each month
+    Annual   — Monthly × 12
+    Total Y1 — Catalog + Signups + Annual (full first-year cost)
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 8 — PLANNED / FUTURE LABELS
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  No planned labels defined yet.
+
+  To add a future node label from the products layer (or any layer):
+  1. Open this script and find LABEL_REGISTRY
+  2. Add an entry under the appropriate layer comment, e.g.:
+
+     "ProductCategory": LabelDef(
+         text_props=["name", "description"],
+         avg_tokens=0, max_tokens=0,
+         layer="products",
+         notes="PLANNED — product category taxonomy.",
+         status="planned",
+     ),
+
+  3. Once the data is in Neo4j, run the token sampler to measure real averages:
+     python scripts/sample_embedding_tokens.py
+  4. Update avg_tokens and max_tokens with the measured values.
+  5. Change status from 'planned' to 'active'.
+
+  Re-embedding triggers — when do you pay AGAIN for an existing node?
+
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  Trigger                             Affected labels                 │
+  ├──────────────────────────────────────────────────────────────────────┤
+  │  New node ingested                   ALL labels                      │
+  │  Recipe instructions updated         Recipe                          │
+  │  Customer updates health profile     B2C_Customer_Health_Profiles    │
+  │  Product name / brand changes        Product                         │
+  │  Manual reset (reset script)         ALL labels — full re-embed      │
+  ├──────────────────────────────────────────────────────────────────────┤
+  │  NOT a trigger (no re-embed, no cost):                               │
+  │    Numeric property changes (BMI, calories, price, etc.)             │
+  │    Relationship changes (edges added/removed)                        │
+  │    GraphSAGE structural embedding regeneration                       │
+  └──────────────────────────────────────────────────────────────────────┘
+
+───────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(.venv) (base) priyapatil@Mac-22461 Gold-to-Neo4j %    python scripts/estimate_embedding_cost.py
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SEMANTIC EMBEDDING — COST ESTIMATOR
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  Model   : text-embedding-3-small
+  Price   : $0.0200 per 1,000,000 tokens  (20.0000 per 1,000 tokens)
+  Tokens  : measured from real Neo4j data  (~4 chars per token)
+  Rule    : only NEW nodes are embedded — existing semanticEmbedding is never re-billed
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 1 — COST & API CALLS PER NODE LABEL  (per 100 / 500 / 1K / 5K / 10K new nodes)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  Embeddings are only generated for NEW nodes — existing ones are skipped.
+  Token averages are measured from your real Neo4j data.
+  EMBEDDING_BATCH_SIZE = 10  (nodes sent per HTTP request to the embedding API)
+
+  PART A — COST
+  Label                                         100          500           1K           5K          10K   Avg tok  Text properties
+
+  ── RECIPES layer ──────────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  Recipe                                  $0.000390      $0.0020      $0.0039      $0.0195      $0.0390       195  title, description, difficulty, ...
+  Cuisine                                 $0.000008    $0.000040    $0.000080    $0.000400    $0.000800         4  code, name
+
+  ── INGREDIENTS layer ──────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  Ingredient                              $0.000012    $0.000060    $0.000120    $0.000600      $0.0012         6  name, category
+  NutritionValue                          $0.000012    $0.000060    $0.000120    $0.000600      $0.0012         6  entity_type, nutrient_code
+  NutrientDefinition                      $0.000030    $0.000150    $0.000300      $0.0015      $0.0030        15  category, nutrient_code, nutrien...
+  NutritionCategory                       $0.000066    $0.000330    $0.000660      $0.0033      $0.0066        33  category_name, description, subc...
+
+  ── PRODUCTS layer  (+ planned future labels shown below) ─────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  Product                                 $0.000032    $0.000160    $0.000320      $0.0016      $0.0032        16  name, brand, status
+
+  ── CUSTOMERS layer ────────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  B2C_Customer                            $0.000022    $0.000110    $0.000220      $0.0011      $0.0022        11  email, full_name, gender
+  Household                               $0.000020    $0.000100    $0.000200      $0.0010      $0.0020        10  account_status, household_name, ...
+  B2C_Customer_Health_Profiles            $0.000018    $0.000090    $0.000180    $0.000900      $0.0018         9  activity_level, disliked_ingredi...
+  B2C_Customer_Health_Conditions          $0.000022    $0.000110    $0.000220      $0.0011      $0.0022        11  email, full_name, gender
+  Allergens                               $0.000026    $0.000130    $0.000260      $0.0013      $0.0026        13  category, code, description, name
+  Dietary_Preferences                     $0.000076    $0.000380    $0.000760      $0.0038      $0.0076        38  category, code, description, name
+  HouseholdBudget                         $0.000008    $0.000040    $0.000080    $0.000400    $0.000800         4  period, budget_type
+  MealLogStreak                               $0.00        $0.00        $0.00        $0.00        $0.00         —  (no text properties — zero cost)
+
+  ── INTERACTION / REALTIME layer  (grows with customer activity) ─────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  MealLog                                     $0.00        $0.00        $0.00        $0.00        $0.00         —  (no text properties — zero cost)
+  MealLogItem                             $0.000004    $0.000020    $0.000040    $0.000200    $0.000400         2  meal_type
+  ScanEvent                               $0.000006    $0.000030    $0.000060    $0.000300    $0.000600         3  barcode_format, scan_source
+  MealPlan                                $0.000012    $0.000060    $0.000120    $0.000600      $0.0012         6  meals_per_day
+  MealPlanItem                            $0.000008    $0.000040    $0.000080    $0.000400    $0.000800         4  meal_type, status
+
+
+  PART B — API CALLS TO EMBEDDING MODEL  (batch_size=10 nodes/request)
+  Formula: ceil(nodes / 10)  — each request sends up to 10 texts to the API.
+  Nodes with no text properties make ZERO calls regardless of count.
+
+  Label                                       100        500         1K         5K        10K   Avg tok  Note
+
+  ── RECIPES layer ──────────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  Recipe                                       10         50        100        500      1,000       195  Most tokens per node — instructions field is long prose.
+  Cuisine                                      10         50        100        500      1,000         4  Small lookup table (~15–50 rows total). Near-zero cost.
+
+  ── INGREDIENTS layer ──────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  Ingredient                                   10         50        100        500      1,000         6  Short name + category. Very cheap per node.
+  NutritionValue                               10         50        100        500      1,000         6  ~10 rows per ingredient. Scales with catalog size.
+  NutrientDefinition                           10         50        100        500      1,000        15  Nutrient taxonomy. Fixed ~117–150 rows total.
+  NutritionCategory                            10         50        100        500      1,000        33  Fixed ~30–80 rows total. Rich descriptions.
+
+  ── PRODUCTS layer  (+ planned future labels shown below) ─────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  Product                                      10         50        100        500      1,000        16  Product identity text. Scales with catalog.
+
+  ── CUSTOMERS layer ────────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  B2C_Customer                                 10         50        100        500      1,000        11  1 node per registered customer.
+  Household                                    10         50        100        500      1,000        10  ~1 per customer.
+  B2C_Customer_Health_Profiles                 10         50        100        500      1,000         9  1 per customer. Re-embeds if profile changes.
+  B2C_Customer_Health_Conditions               10         50        100        500      1,000        11  0–N per customer (avg ~2 conditions).
+  Allergens                                    10         50        100        500      1,000        13  Safety-critical lookup. Fixed ~20 rows.
+  Dietary_Preferences                          10         50        100        500      1,000        38  Safety-critical lookup. Fixed ~32 rows.
+  HouseholdBudget                              10         50        100        500      1,000         4  1 per household.
+  MealLogStreak                                 0          0          0          0          0         —  no text — zero API calls
+
+  ── INTERACTION / REALTIME layer  (grows with customer activity) ─────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────
+  MealLog                                       0          0          0          0          0         —  no text — zero API calls
+  MealLogItem                                  10         50        100        500      1,000         2  ~4 per MealLog. Very short text.
+  ScanEvent                                    10         50        100        500      1,000         3  1 per barcode scan. ~5/customer/month.
+  MealPlan                                     10         50        100        500      1,000         6  ~2/customer/month.
+  MealPlanItem                                 10         50        100        500      1,000         4  ~21 per MealPlan (3 meals × 7 days). Highest volume.
+
+  Key insight: ALL labels produce the same call count for the same node count
+  because calls = ceil(nodes / batch_size), independent of token length.
+  100 nodes always = 10 calls,  1K nodes = 100 calls,  10K nodes = 1000 calls  (at batch_size=10)
+
+  To reduce calls (useful if you hit rate limits): increase EMBEDDING_BATCH_SIZE in .env
+  Current: EMBEDDING_BATCH_SIZE=10  →  100 nodes = 10 calls
+  If set to 50:                              →  100 nodes = 2 calls
+  If set to 100:                             →  100 nodes = 1 call
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 2 — TOKEN BREAKDOWN PER LABEL  (what text is being embedded)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  Shows exactly which properties are concatenated, avg chars, and token count.
+
+  Label                                   Avg chars  Avg tokens  Max tokens  Visual
+───────────────────────────────────────────────────────────────────────────────────────────────
+  Recipe                                        780         195         415  █████████████████████████
+                                           props: title, description, difficulty, instr...
+
+  Cuisine                                        16           4           8  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: code, name
+
+  Ingredient                                     24           6           8  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: name, category
+
+  NutritionValue                                 24           6           8  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: entity_type, nutrient_code
+
+  NutrientDefinition                             60          15          25  ██░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: category, nutrient_code, nutrient_nam...
+
+  NutritionCategory                             132          33          52  ████░░░░░░░░░░░░░░░░░░░░░
+                                           props: category_name, description, subcatego...
+
+  Product                                        64          16          26  ██░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: name, brand, status
+
+  B2C_Customer                                   44          11          12  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: email, full_name, gender
+
+  Household                                      40          10          12  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: account_status, household_name, house...
+
+  B2C_Customer_Health_Profiles                   36           9          17  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: activity_level, disliked_ingredients,...
+
+  B2C_Customer_Health_Conditions                 44          11          12  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: email, full_name, gender
+
+  Allergens                                      52          13          28  ██░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: category, code, description, name
+
+  Dietary_Preferences                           152          38          55  █████░░░░░░░░░░░░░░░░░░░░
+                                           props: category, code, description, name
+
+  HouseholdBudget                                16           4           4  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: period, budget_type
+
+  MealLogStreak                                   —           0           0  (skipped — no text)
+  MealLog                                         —           0           0  (skipped — no text)
+  MealLogItem                                     8           2           3  ░░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: meal_type
+
+  ScanEvent                                      12           3           4  ░░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: barcode_format, scan_source
+
+  MealPlan                                       24           6           7  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: meals_per_day
+
+  MealPlanItem                                   16           4           5  █░░░░░░░░░░░░░░░░░░░░░░░░
+                                           props: meal_type, status
+
+  Note: 1 token ≈ 4 characters of English text (OpenAI rule-of-thumb).
+        Recipe has the most tokens because 'instructions' is long prose (~600+ chars).
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 3 — CUSTOMER REGISTRATION COST  (one-time, per new signup)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  When a customer registers, these nodes are created and embedded ONCE.
+  They are only re-embedded if the customer updates their profile text.
+
+  Node created on signup                  Nodes   Tokens         Cost  Note
+───────────────────────────────────────────────────────────────────────────────────────────────
+  B2C_Customer                                1       11  $0.00000022  1 per customer
+  Household                                   1       10  $0.00000020  1 per customer (shared households possible)
+  B2C_Customer_Health_Profiles                1        9  $0.00000018  1 per customer
+  B2C_Customer_Health_Conditions              2       22  $0.00000044  avg 2 conditions per customer
+  HouseholdBudget                             1        4  $0.00000008  1 per household
+  MealLogStreak                               1 0 (no text)        $0.00  1 per customer — NO TEXT, $0
+───────────────────────────────────────────────────────────────────────────────────────────────
+  TOTAL per new customer signup                       56    $0.000001
+
+  Scaling — cost for N new customers registering:
+    New customers    Total tokens    Cost (avg)   Cost (worst-case)
+  ───────────────  ──────────────  ────────────  ──────────────────
+              100           5,600     $0.000112           $0.000138
+              500          28,000     $0.000560           $0.000690
+            1,000          56,000       $0.0011             $0.0014
+            5,000         280,000       $0.0056             $0.0069
+           10,000         560,000       $0.0112             $0.0138
+           50,000       2,800,000       $0.0560             $0.0690
+          100,000       5,600,000       $0.1120             $0.1380
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 4 — REALTIME / INTERACTION NODE COST  (monthly recurring)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  These nodes are created every time a customer logs a meal, scans a product,
+  or generates a meal plan. Cost recurs every month.
+
+  Activity assumptions (edit in script if your usage differs):
+  Node                    Events/cust/mo  Nodes/event  Nodes/cust/mo  Avg tok   Cost/cust/mo
+───────────────────────────────────────────────────────────────────────────────────────────────
+  MealLog                             30            1             30        —   $0 (no text)  ← 30 meal logs / customer / month
+  MealLogItem                         30            4            120        2      $0.000005  ← 4 items per meal log on average
+  ScanEvent                            5            1              5        3    $0.00000030  ← 5 barcode scans / customer / month
+  MealPlan                             2            1              2        6    $0.00000024  ← 2 meal plans generated / customer / month
+  MealPlanItem                         2           21             42        4      $0.000003  ← 21 items per plan (3 meals × 7 days)
+───────────────────────────────────────────────────────────────────────────────────────────────
+  TOTAL per customer per month                                                  435      $0.000009
+
+  Monthly + annual cost at different active customer counts:
+   Active customers   Monthly tokens   Monthly cost   Annual cost
+  ─────────────────  ───────────────  ─────────────  ────────────
+                100           43,500      $0.000870       $0.0104
+                500          217,500        $0.0043       $0.0522
+              1,000          435,000        $0.0087       $0.1044
+              5,000        2,175,000        $0.0435       $0.5220
+             10,000        4,350,000        $0.0870         $1.04
+             50,000       21,750,000        $0.4350         $5.22
+            100,000       43,500,000        $0.8700        $10.44
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 5 — CATALOG GROWTH COST  (as you add more recipes, products, ingredients)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  You start with some data today. As you grow the catalog, each NEW batch
+  of nodes costs exactly this much to embed. Already-embedded nodes = $0.
+
+  ┌─ Recipe  [recipes layer]
+  │  Text embedded : title, description, difficulty, instructions
+  │  Avg tokens    : 195 tok/node  (~780 chars)
+  │  Note          : Rich text (title+desc+instructions). Most expensive per node.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100        19,500     $0.000390           $0.000830         $0.000390  ← START
+  │           500        78,000       $0.0016             $0.0033           $0.0019  
+  │         1,000        97,500       $0.0020             $0.0042           $0.0039  
+  │         2,000       195,000       $0.0039             $0.0083           $0.0078  
+  │         5,000       585,000       $0.0117             $0.0249           $0.0195  
+  │        10,000       975,000       $0.0195             $0.0415           $0.0390  
+  │        50,000     7,800,000       $0.1560             $0.3320           $0.1950  
+  │
+  │  $1 embeds approximately 256,410 Recipe nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ Product  [products layer]
+  │  Text embedded : name, brand, status
+  │  Avg tokens    : 16 tok/node  (~64 chars)
+  │  Note          : Name+brand+status. Scales with vendor catalog.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100         1,600     $0.000032           $0.000052         $0.000032  ← START
+  │           500         6,400     $0.000128           $0.000208         $0.000160  
+  │         1,000         8,000     $0.000160           $0.000260         $0.000320  
+  │         2,000        16,000     $0.000320           $0.000520         $0.000640  
+  │         5,000        48,000     $0.000960             $0.0016           $0.0016  
+  │        10,000        80,000       $0.0016             $0.0026           $0.0032  
+  │        50,000       640,000       $0.0128             $0.0208           $0.0160  
+  │
+  │  $1 embeds approximately 3,125,000 Product nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ Ingredient  [ingredients layer]
+  │  Text embedded : name, category
+  │  Avg tokens    : 6 tok/node  (~24 chars)
+  │  Note          : Name+category. Short text.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100           600     $0.000012           $0.000016         $0.000012  ← START
+  │           500         2,400     $0.000048           $0.000064         $0.000060  
+  │         1,000         3,000     $0.000060           $0.000080         $0.000120  
+  │         2,000         6,000     $0.000120           $0.000160         $0.000240  
+  │         5,000        18,000     $0.000360           $0.000480         $0.000600  
+  │        10,000        30,000     $0.000600           $0.000800           $0.0012  
+  │        50,000       240,000       $0.0048             $0.0064           $0.0060  
+  │
+  │  $1 embeds approximately 8,333,333 Ingredient nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ NutritionValue  [ingredients layer]
+  │  Text embedded : entity_type, nutrient_code
+  │  Avg tokens    : 6 tok/node  (~24 chars)
+  │  Note          : ~10 rows per ingredient. Grows with ingredient catalog.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100           600     $0.000012           $0.000016         $0.000012  ← START
+  │           500         2,400     $0.000048           $0.000064         $0.000060  
+  │         1,000         3,000     $0.000060           $0.000080         $0.000120  
+  │         2,000         6,000     $0.000120           $0.000160         $0.000240  
+  │         5,000        18,000     $0.000360           $0.000480         $0.000600  
+  │        10,000        30,000     $0.000600           $0.000800           $0.0012  
+  │        50,000       240,000       $0.0048             $0.0064           $0.0060  
+  │
+  │  $1 embeds approximately 8,333,333 NutritionValue nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ NutrientDefinition  [ingredients layer]
+  │  Text embedded : category, nutrient_code, nutrient_name, subcategory
+  │  Avg tokens    : 15 tok/node  (~60 chars)
+  │  Note          : Fixed taxonomy ~117–150 rows. One-time cost.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100         1,500     $0.000030           $0.000050         $0.000030  ← START
+  │           500         6,000     $0.000120           $0.000200         $0.000150  
+  │         1,000         7,500     $0.000150           $0.000250         $0.000300  
+  │         2,000        15,000     $0.000300           $0.000500         $0.000600  
+  │         5,000        45,000     $0.000900             $0.0015           $0.0015  
+  │        10,000        75,000       $0.0015             $0.0025           $0.0030  
+  │        50,000       600,000       $0.0120             $0.0200           $0.0150  
+  │
+  │  $1 embeds approximately 3,333,333 NutrientDefinition nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ NutritionCategory  [ingredients layer]
+  │  Text embedded : category_name, description, subcategory_name, display_name, icon_name
+  │  Avg tokens    : 33 tok/node  (~132 chars)
+  │  Note          : Fixed ~30–80 rows. One-time cost.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100         3,300     $0.000066           $0.000104         $0.000066  ← START
+  │           500        13,200     $0.000264           $0.000416         $0.000330  
+  │         1,000        16,500     $0.000330           $0.000520         $0.000660  
+  │         2,000        33,000     $0.000660             $0.0010           $0.0013  
+  │         5,000        99,000       $0.0020             $0.0031           $0.0033  
+  │        10,000       165,000       $0.0033             $0.0052           $0.0066  
+  │        50,000     1,320,000       $0.0264             $0.0416           $0.0330  
+  │
+  │  $1 embeds approximately 1,515,151 NutritionCategory nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ Dietary_Preferences  [customers layer]
+  │  Text embedded : category, code, description, name
+  │  Avg tokens    : 38 tok/node  (~152 chars)
+  │  Note          : Fixed ~32 rows. One-time cost.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100         3,800     $0.000076           $0.000110         $0.000076  ← START
+  │           500        15,200     $0.000304           $0.000440         $0.000380  
+  │         1,000        19,000     $0.000380           $0.000550         $0.000760  
+  │         2,000        38,000     $0.000760             $0.0011           $0.0015  
+  │         5,000       114,000       $0.0023             $0.0033           $0.0038  
+  │        10,000       190,000       $0.0038             $0.0055           $0.0076  
+  │        50,000     1,520,000       $0.0304             $0.0440           $0.0380  
+  │
+  │  $1 embeds approximately 1,315,789 Dietary_Preferences nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ Allergens  [customers layer]
+  │  Text embedded : category, code, description, name
+  │  Avg tokens    : 13 tok/node  (~52 chars)
+  │  Note          : Fixed ~20 rows. One-time cost.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100         1,300     $0.000026           $0.000056         $0.000026  ← START
+  │           500         5,200     $0.000104           $0.000224         $0.000130  
+  │         1,000         6,500     $0.000130           $0.000280         $0.000260  
+  │         2,000        13,000     $0.000260           $0.000560         $0.000520  
+  │         5,000        39,000     $0.000780             $0.0017           $0.0013  
+  │        10,000        65,000       $0.0013             $0.0028           $0.0026  
+  │        50,000       520,000       $0.0104             $0.0224           $0.0130  
+  │
+  │  $1 embeds approximately 3,846,153 Allergens nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+  ┌─ Cuisine  [recipes layer]
+  │  Text embedded : code, name
+  │  Avg tokens    : 4 tok/node  (~16 chars)
+  │  Note          : Fixed ~15–50 rows. One-time cost.
+  │
+  │   Nodes added    New tokens    Cost (avg)   Cost (worst-case)   Cumulative cost
+  │  ────────────  ────────────  ────────────  ──────────────────  ────────────────
+  │           100           400     $0.000008           $0.000016         $0.000008  ← START
+  │           500         1,600     $0.000032           $0.000064         $0.000040  
+  │         1,000         2,000     $0.000040           $0.000080         $0.000080  
+  │         2,000         4,000     $0.000080           $0.000160         $0.000160  
+  │         5,000        12,000     $0.000240           $0.000480         $0.000400  
+  │        10,000        20,000     $0.000400           $0.000800         $0.000800  
+  │        50,000       160,000       $0.0032             $0.0064           $0.0040  
+  │
+  │  $1 embeds approximately 12,500,000 Cuisine nodes
+  └────────────────────────────────────────────────────────────────────────────────
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 6 — HOW FAR DOES $1 GO?  (nodes you can embed per dollar)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  Inverse of cost — answers: 'If I have $1 of embedding budget, how many
+  nodes of each type can I embed?'  Useful for quick budget sanity checks.
+
+  At $0.0200/1M tokens:  $1 = 50,000,000 tokens
+
+  Label                                   Avg tok   Nodes per $1  Nodes per $10  Nodes per $100
+───────────────────────────────────────────────────────────────────────────────────────────────
+
+  ── CATALOG — Recipes
+  Recipe                                      195        256,410      2,564,102      25,641,025
+  Cuisine                                       4     12,500,000    125,000,000   1,250,000,000
+
+  ── CATALOG — Ingredients & Nutrition
+  Ingredient                                    6      8,333,333     83,333,333     833,333,333
+  NutritionValue                                6      8,333,333     83,333,333     833,333,333
+  NutrientDefinition                           15      3,333,333     33,333,333     333,333,333
+  NutritionCategory                            33      1,515,151     15,151,515     151,515,151
+
+  ── CATALOG — Products
+  Product                                      16      3,125,000     31,250,000     312,500,000
+
+  ── CUSTOMER — Profile nodes (one-time per signup)
+  B2C_Customer                                 11      4,545,454     45,454,545     454,545,454
+  Household                                    10      5,000,000     49,999,999     499,999,999
+  B2C_Customer_Health_Profiles                  9      5,555,555     55,555,555     555,555,555
+  B2C_Customer_Health_Conditions               11      4,545,454     45,454,545     454,545,454
+  Allergens                                    13      3,846,153     38,461,538     384,615,384
+  Dietary_Preferences                          38      1,315,789     13,157,894     131,578,947
+  HouseholdBudget                               4     12,500,000    125,000,000   1,250,000,000
+  MealLogStreak                                 —    ∞ (no text)    ∞ (no text)     ∞ (no text)
+
+  ── INTERACTION — Activity nodes (recurring per event)
+  MealLog                                       —    ∞ (no text)    ∞ (no text)     ∞ (no text)
+  MealLogItem                                   2     25,000,000    250,000,000   2,500,000,000
+  ScanEvent                                     3     16,666,666    166,666,666   1,666,666,666
+  MealPlan                                      6      8,333,333     83,333,333     833,333,333
+  MealPlanItem                                  4     12,500,000    125,000,000   1,250,000,000
+
+  Quick reference:
+  • $1 embeds ~256,410 Recipes  or ~3,125,000 Products  or ~8,333,333 Ingredients
+  • $1 covers the embedding cost of 892,857 complete customer signups
+  • $1 covers 1 month of activity for 114,942 active customers
+  • $1 covers 1 full year of activity for 9,578 active customers
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 7 — FULL BUDGET SUMMARY  (catalog + signups + monthly activity)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  Stage                               Catalog    Signups    Monthly     Annual   Total Year 1
+                                     (1-time)   (1-time)    (recur)    (recur)  (catalog+reg+annual)
+───────────────────────────────────────────────────────────────────────────────────────────────
+  MVP  (100 customers)                $0.0040  $0.000112  $0.000870    $0.0104        $0.0146
+  Growth  (1K customers)              $0.0110    $0.0011    $0.0087    $0.1044        $0.1165
+  Scale  (10K customers)              $0.0365    $0.0112    $0.0870      $1.04          $1.09
+  Enterprise  (100K customers)        $0.1448    $0.1120    $0.8700     $10.44         $10.70
+
+  Column guide:
+    Catalog  — one-time cost to embed all recipes, products, ingredients, nutrition data
+    Signups  — one-time cost when N customers register (profile + health nodes)
+    Monthly  — recurring cost from meal logs, scans, meal plans each month
+    Annual   — Monthly × 12
+    Total Y1 — Catalog + Signups + Annual (full first-year cost)
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SECTION 8 — PLANNED / FUTURE LABELS
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  No planned labels defined yet.
+
+  To add a future node label from the products layer (or any layer):
+  1. Open this script and find LABEL_REGISTRY
+  2. Add an entry under the appropriate layer comment, e.g.:
+
+     "ProductCategory": LabelDef(
+         text_props=["name", "description"],
+         avg_tokens=0, max_tokens=0,
+         layer="products",
+         notes="PLANNED — product category taxonomy.",
+         status="planned",
+     ),
+
+  3. Once the data is in Neo4j, run the token sampler to measure real averages:
+     python scripts/sample_embedding_tokens.py
+  4. Update avg_tokens and max_tokens with the measured values.
+  5. Change status from 'planned' to 'active'.
+
+  Re-embedding triggers — when do you pay AGAIN for an existing node?
+
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  Trigger                             Affected labels                 │
+  ├──────────────────────────────────────────────────────────────────────┤
+  │  New node ingested                   ALL labels                      │
+  │  Recipe instructions updated         Recipe                          │
+  │  Customer updates health profile     B2C_Customer_Health_Profiles    │
+  │  Product name / brand changes        Product                         │
+  │  Manual reset (reset script)         ALL labels — full re-embed      │
+  ├──────────────────────────────────────────────────────────────────────┤
+  │  NOT a trigger (no re-embed, no cost):                               │
+  │    Numeric property changes (BMI, calories, price, etc.)             │
+  │    Relationship changes (edges added/removed)                        │
+  │    GraphSAGE structural embedding regeneration                       │
+  └──────────────────────────────────────────────────────────────────────┘
+
+
+
+
+
+
+
+
+
+
+
+
+
+(.venv) (base) priyapatil@Mac-22461 Gold-to-Neo4j % python scripts/manager_cost_report.py
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SEMANTIC EMBEDDING COST REPORT — KNOWLEDGE GRAPH
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  Scenario  : 1,000 Recipes  |  1,000 Products  |  1,000 Ingredients  |  1,000 Customers
+  Model     : text-embedding-3-small  @  $0.0200 per 1M tokens
+  Assumption: Nothing is embedded yet — full fresh ingestion
+  Note      : Relationships have NO embedding cost (edges are free)
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  THE KNOWLEDGE GRAPH — WHAT GETS BUILT
+═══════════════════════════════════════════════════════════════════════════════════════════════
+
+  When the pipeline runs with your target data, here is what the
+  Knowledge Graph looks like in Neo4j:
+
+  ┌─ RECIPES LAYER  (Recipes with instructions, cuisine types)
+  │  Recipe                                      1,000 nodes  
+  │  Cuisine                                        15 nodes  
+  │  Subtotal                                    1,015 nodes
+  └──────────────────────────────────────────────────────────────────────
+
+  ┌─ INGREDIENTS LAYER  (Ingredients, their nutrition facts, and nutrient taxonomy)
+  │  Ingredient                                  1,000 nodes  
+  │  NutritionValue                             10,000 nodes  
+  │  NutrientDefinition                            117 nodes  
+  │  NutritionCategory                              31 nodes  
+  │  Subtotal                                   11,148 nodes
+  └──────────────────────────────────────────────────────────────────────
+
+  ┌─ PRODUCTS LAYER  (Scanned/catalogued food products)
+  │  Product                                     1,000 nodes  
+  │  Subtotal                                    1,000 nodes
+  └──────────────────────────────────────────────────────────────────────
+
+  ┌─ CUSTOMERS LAYER  (Customer profiles, health data, preferences)
+  │  B2C_Customer                                1,000 nodes  
+  │  Household                                   1,000 nodes  
+  │  B2C_Customer_Health_Profiles                1,000 nodes  
+  │  B2C_Customer_Health_Conditions              2,000 nodes  
+  │  HouseholdBudget                             1,000 nodes  
+  │  Allergens                                      20 nodes  
+  │  Dietary_Preferences                            32 nodes  
+  │  MealLogStreak                               1,000 nodes    ← NO TEXT, $0
+  │  Subtotal                                    7,052 nodes
+  └──────────────────────────────────────────────────────────────────────
+
+  ┌─ INTERACTION LAYER  (Activity nodes — created as customers use the app (ongoing))
+  │  MealLog                                         0 nodes    ← NO TEXT, $0  ← ongoing, not in one-time cost
+  │  MealLogItem                                     0 nodes    ← ongoing, not in one-time cost
+  │  ScanEvent                                       0 nodes    ← ongoing, not in one-time cost
+  │  MealPlan                                        0 nodes    ← ongoing, not in one-time cost
+  │  MealPlanItem                                    0 nodes    ← ongoing, not in one-time cost
+  │  Subtotal                                        0 nodes
+  └──────────────────────────────────────────────────────────────────────
+
+  TOTAL NODES in Knowledge Graph                 20,215
+
+  Relationships (edges connecting the nodes):
+  HAS_NUTRITION               10,000  (Ingredient → has nutrition data)
+  OF_NUTRIENT                 10,000  (NutritionValue → belongs to nutrient definition)
+  PARENT_OF                       23  (NutritionCategory → parent category)
+  BELONGS_TO_CUSINE            1,000  (Recipe → belongs to cuisine)
+  HAS_PROFILE                  1,000  (Customer → has health profile)
+  HAS_CONDITION                2,000  (Customer → has health condition)
+  IS_ALLERGIC                  3,000  (Customer → is allergic to allergen)
+  FOLLOWS_DIET                 2,000  (Customer → follows dietary preference)
+  VIEWED                      10,000  (Customer → viewed recipe)
+  SAVED                        3,000  (Customer → saved recipe)
+  HAS_BUDGET                   1,000  (Household → has budget)
+  HAS_HOUSEHOLD                1,000  (Customer → belongs to household)
+
+  TOTAL RELATIONSHIPS         44,023
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  EMBEDDING COST — NODE BY NODE BREAKDOWN
+═══════════════════════════════════════════════════════════════════════════════════════════════
+
+  What is an embedding?
+  Every node that has text properties gets converted into a numerical
+  fingerprint (embedding vector) stored in Neo4j. This is what powers
+  AI features like 'find similar recipes' and 'recommend products'.
+  We pay the embedding API per token of text processed.
+
+  Model  : text-embedding-3-small
+  Price  : $0.0200 per 1,000,000 tokens
+  Batch  : 10 nodes per API request  (EMBEDDING_BATCH_SIZE in .env)
+
+  Node Label                                 Nodes    Avg tok Total tokens  API calls       Cost
+───────────────────────────────────────────────────────────────────────────────────────────────
+
+  ── RECIPES LAYER
+  Recipe                                     1,000        195      195,000        100    $0.0039
+  Cuisine                                       15          4           60          2  $0.000001
+───────────────────────────────────────────────────────────────────────────────────────────────
+    Layer subtotal                           1,015                 195,060        102    $0.0039
+
+  ── INGREDIENTS LAYER
+  Ingredient                                 1,000          6        6,000        100    $0.0001
+  NutritionValue                            10,000          6       60,000      1,000    $0.0012
+  NutrientDefinition                           117         15        1,755         12  $0.000035
+  NutritionCategory                             31         33        1,023          4  $0.000020
+───────────────────────────────────────────────────────────────────────────────────────────────
+    Layer subtotal                          11,148                  68,778      1,116    $0.0014
+
+  ── PRODUCTS LAYER
+  Product                                    1,000         16       16,000        100    $0.0003
+───────────────────────────────────────────────────────────────────────────────────────────────
+    Layer subtotal                           1,000                  16,000        100    $0.0003
+
+  ── CUSTOMERS LAYER
+  B2C_Customer                               1,000         11       11,000        100    $0.0002
+  Household                                  1,000         10       10,000        100    $0.0002
+  B2C_Customer_Health_Profiles               1,000          9        9,000        100    $0.0002
+  B2C_Customer_Health_Conditions             2,000         11       22,000        200    $0.0004
+  HouseholdBudget                            1,000          4        4,000        100  $0.000080
+  Allergens                                     20         13          260          2  $0.000005
+  Dietary_Preferences                           32         38        1,216          4  $0.000024
+  MealLogStreak                              1,000          —            —          0      $0.00  ← no text
+───────────────────────────────────────────────────────────────────────────────────────────────
+    Layer subtotal                           7,052                  57,476        606    $0.0011
+
+───────────────────────────────────────────────────────────────────────────────────────────────
+  GRAND TOTAL (one-time, all layers)        20,215                 337,314      1,924    $0.0067
+───────────────────────────────────────────────────────────────────────────────────────────────
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  ONGOING MONTHLY COST — CUSTOMER ACTIVITY (INTERACTION LAYER)
+═══════════════════════════════════════════════════════════════════════════════════════════════
+
+  The Interaction Layer grows every time a customer uses the app.
+  These are NEW nodes created each month — not re-embedding existing ones.
+
+  Node                   What it represents              Events/mo     Nodes/mo    Avg tok  API calls      Cost/mo
+───────────────────────────────────────────────────────────────────────────────────────────────
+  MealLog                Meal log header                    30,000       30,000          —          0        $0.00  ← 30 logs/customer/month — NO TEXT, $0
+  MealLogItem            Items inside a meal log            30,000      120,000          2     12,000      $0.0048  ← 4 food items per log on average
+  ScanEvent              Barcode scan event                  5,000        5,000          3        500      $0.0003  ← 5 scans/customer/month
+  MealPlan               AI-generated meal plan              2,000        2,000          6        200      $0.0002  ← 2 plans/customer/month
+  MealPlanItem           Item inside a meal plan             2,000       42,000          4      4,200      $0.0034  ← 21 items per plan (3 meals × 7 days)
+───────────────────────────────────────────────────────────────────────────────────────────────
+  TOTAL per month  (1,000 customers)                                                           16,900      $0.0087
+  TOTAL per year                                                                              202,800      $0.1044
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  EXECUTIVE SUMMARY — WHAT TO TELL YOUR MANAGER
+═══════════════════════════════════════════════════════════════════════════════════════════════
+
+  Scenario: 1,000 Recipes  |  1,000 Products  |  1,000 Ingredients  |  1,000 Customers
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │                        COST SUMMARY                                     │
+  ├─────────────────────────────────────────────────────────────────────────┤
+  │  One-time setup cost (embed entire Knowledge Graph)                     │
+  │    Total nodes to embed    :     20,215                              │
+  │    Total tokens processed  :    337,314                              │
+  │    Total API calls made    :      1,924                              │
+  │    ONE-TIME COST           :      $0.0067                            │
+  ├─────────────────────────────────────────────────────────────────────────┤
+  │  Ongoing monthly cost (customer activity)                               │
+  │    MONTHLY COST (1,000 active customers)  :      $0.0087              │
+  │    ANNUAL COST                         :      $0.1044              │
+  ├─────────────────────────────────────────────────────────────────────────┤
+  │  TOTAL YEAR 1  (setup + 12 months activity)                             │
+  │    YEAR 1 TOTAL                        :      $0.1111              │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  In plain English:
+
+  • To embed the entire Knowledge Graph with 1,000 recipes,
+    1,000 products, 1,000 ingredients and 1,000 customers,
+    the one-time cost is $0.0067.
+
+  • Every month, as 1,000 customers log meals and generate plans,
+    the ongoing embedding cost is $0.0087 per month ($0.1044 per year).
+
+  • The TOTAL cost for the entire first year is $0.1111.
+
+  • Relationships (edges in the graph) have NO embedding cost.
+    Only nodes with text properties are sent to the embedding API.
+
+  • Nodes that already have embeddings are NEVER re-billed.
+    Only NEW nodes added in the future incur cost.
+
+  ─── Context: what does this compare to? ─────────────────────────────────
+
+  • A single ChatGPT-4o API call costs ~$0.005–$0.015.
+  • Your entire Year 1 embedding bill ($0.1111) is less than
+    the cost of 11 ChatGPT-4o calls.
+  • Embedding is the cheapest AI operation in this system.
+    The LLM calls (meal plan generation, AI chat) cost 100–500× more per call.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+  SCALING PROJECTIONS — WHAT IF WE GROW?
+═══════════════════════════════════════════════════════════════════════════════════════════════
+
+  As you add more recipes, products, or customers, here is how cost scales.
+  Each row shows the ADDITIONAL cost of adding that many NEW nodes.
+
+  Scenario                                        One-time    Monthly     Annual     Year 1
+───────────────────────────────────────────────────────────────────────────────────────────────
+  Base: 1,000R / 1,000P / 1,000I / 1,000C          $0.0067    $0.0087    $0.1044    $0.1111
+  2× customers  (2,000 customers)                  $0.0079    $0.0174    $0.2088    $0.2167
+  5× customers  (5,000 customers)                  $0.0112    $0.0435    $0.5220    $0.5332
+  10× customers (10,000 customers)                 $0.0168    $0.0870      $1.04      $1.06
+  2× recipes    (2,000 recipes)                    $0.0106    $0.0087    $0.1044    $0.1150
+  5× recipes    (5,000 recipes)                    $0.0223    $0.0087    $0.1044    $0.1267
+  10× products  (10,000 products)                  $0.0096    $0.0087    $0.1044    $0.1140
+  Full scale: 5K R / 50K P / 10K I / 10K C         $0.0600    $0.0870      $1.04      $1.10
+
+═══════════════════════════════════════════════════════════════════════════════════════════════
+
+
+
+
+
+
+
+
+
+───────────────────────────────────────────────────────────────────────────────────────────────

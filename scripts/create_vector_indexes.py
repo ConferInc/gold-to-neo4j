@@ -1,4 +1,4 @@
-"""Create Neo4j vector indexes for semantic and structural embeddings."""
+"""Create Neo4j vector and full-text indexes used by ingestion/search."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def _cypher_prop(prop: str) -> str:
 
 
 def _fetch_index_names(neo4j: Neo4jClient) -> set[str]:
-    rows = neo4j.query("CALL db.indexes() YIELD name RETURN name")
+    rows = neo4j.query("SHOW INDEXES YIELD name RETURN name")
     return {row.get("name") for row in rows if row.get("name")}
 
 
@@ -63,6 +63,27 @@ def _create_index(
     neo4j.execute(cypher, {"dimensions": dimensions, "similarity": similarity})
 
 
+def _create_fulltext_index(
+    neo4j: Neo4jClient,
+    *,
+    name: str,
+    label: str,
+    properties: List[str],
+) -> None:
+    props = ", ".join(f"n.{_cypher_prop(prop)}" for prop in properties)
+    cypher = f"""
+    CREATE FULLTEXT INDEX {name}
+    FOR (n:{label})
+    ON EACH [{props}]
+    """
+    neo4j.execute(cypher)
+
+
+def _fulltext_index_name(label: str, properties: List[str]) -> str:
+    joined_props = "_".join(_sanitize_name(prop) for prop in properties)
+    return f"ft_{_sanitize_name(label)}_{joined_props}"
+
+
 def _iter_index_defs(config: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
     vector_cfg = config.get("vector_indexes", {}) or {}
     for section in ("semantic", "structural"):
@@ -75,6 +96,20 @@ def _iter_index_defs(config: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
             }
 
 
+def _iter_fulltext_index_defs(config: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
+    for item in config.get("fulltext_indexes", []) or []:
+        label = item["label"]
+        properties = [str(prop) for prop in item.get("properties", []) if prop]
+        if not properties:
+            continue
+        name = item.get("name") or _fulltext_index_name(label, properties)
+        yield {
+            "name": name,
+            "label": label,
+            "properties": properties,
+        }
+
+
 def main() -> int:
     load_dotenv(ROOT / ".env", override=True)
     config = load_embedding_config()
@@ -82,15 +117,16 @@ def main() -> int:
     try:
         neo4j.verify_auth()
         existing = _fetch_index_names(neo4j)
-        created = 0
+        vector_created = 0
+        fulltext_created = 0
         for item in _iter_index_defs(config):
-            name = _index_name(item["label"], item["property"])
-            if name in existing:
-                LOG.info("vector index exists", extra={"name": name})
+            idx_name = _index_name(item["label"], item["property"])
+            if idx_name in existing:
+                LOG.info("vector index exists", extra={"index_name": idx_name})
                 continue
             _create_index(
                 neo4j,
-                name=name,
+                name=idx_name,
                 label=item["label"],
                 prop=item["property"],
                 dimensions=item["dimensions"],
@@ -98,10 +134,33 @@ def main() -> int:
             )
             LOG.info(
                 "vector index created",
-                extra={"name": name, "label": item["label"], "property": item["property"]},
+                extra={"index_name": idx_name, "label": item["label"], "property": item["property"]},
             )
-            created += 1
-        LOG.info("vector index creation complete", extra={"created": created})
+            vector_created += 1
+            existing.add(idx_name)
+
+        for item in _iter_fulltext_index_defs(config):
+            idx_name = item["name"]
+            if idx_name in existing:
+                LOG.info("fulltext index exists", extra={"index_name": idx_name})
+                continue
+            _create_fulltext_index(
+                neo4j,
+                name=idx_name,
+                label=item["label"],
+                properties=item["properties"],
+            )
+            LOG.info(
+                "fulltext index created",
+                extra={"index_name": idx_name, "label": item["label"], "properties": item["properties"]},
+            )
+            fulltext_created += 1
+            existing.add(idx_name)
+
+        LOG.info(
+            "index creation complete",
+            extra={"vector_indexes_created": vector_created, "fulltext_indexes_created": fulltext_created},
+        )
         return 0
     finally:
         neo4j.close()

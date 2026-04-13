@@ -162,6 +162,41 @@ def _expected_is_pk(table_cfg: Dict[str, Any], column: str) -> bool:
     return column == table_cfg.get("primary_key")
 
 
+def _build_plan_from_config(table_cfg: Dict[str, Any]) -> TablePlan:
+    """Build TablePlan from config only, without schema validation."""
+    alias_map: Dict[str, str] = dict(table_cfg.get("alias_map", {}))
+    columns_cfg = table_cfg.get("columns", [])
+    select_columns: Optional[List[str]] = None
+    if columns_cfg:
+        select_set = list(columns_cfg)
+        primary_key = table_cfg.get("primary_key")
+        updated_at = table_cfg.get("updated_at")
+        if primary_key and primary_key not in select_set:
+            select_set.append(primary_key)
+        if updated_at and updated_at not in select_set:
+            select_set.append(updated_at)
+        seen = set()
+        mapped: List[str] = []
+        for col in select_set:
+            actual = alias_map.get(col, col)
+            if actual not in seen:
+                mapped.append(actual)
+                seen.add(actual)
+        select_columns = mapped
+
+    updated_at = table_cfg.get("updated_at")
+    updated_at_column = alias_map.get(updated_at, updated_at) if updated_at else None
+    filters = table_cfg.get("filters", {})
+    mapped_filters = {alias_map.get(k, k): v for k, v in filters.items()}
+
+    return TablePlan(
+        select_columns=select_columns,
+        alias_map=alias_map,
+        updated_at_column=updated_at_column,
+        filters=mapped_filters,
+    )
+
+
 def _load_table_schema(supabase, schema: str, table: str) -> Dict[str, ColumnMeta]:
     columns = supabase.fetch_table_columns(schema, table)
     constraints = supabase.fetch_table_constraints(schema, table)
@@ -318,6 +353,15 @@ def build_table_plan(
 ) -> TablePlan:
     if confidence_threshold is None:
         confidence_threshold = float(os.getenv("DRIFT_CONFIDENCE_THRESHOLD", "0.85"))
+
+    contract = table_cfg.get("schema_contract", {})
+    if contract.get("skip_validation"):
+        LOG.info(
+            "skipping schema validation",
+            extra={"table": table_name, "reason": "schema_contract.skip_validation=true"},
+        )
+        return _build_plan_from_config(table_cfg)
+
     schema_info = _load_table_schema(supabase, schema, table_name)
     available = sorted(schema_info.keys())
     required = _collect_required_columns(table_cfg)
