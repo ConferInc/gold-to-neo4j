@@ -9,6 +9,13 @@ from shared.logging import get_logger
 LOG = get_logger(__name__)
 
 
+def _chunk_rows(rows: List[Dict[str, Any]], chunk_size: int) -> Iterable[List[Dict[str, Any]]]:
+    if chunk_size <= 0:
+        chunk_size = len(rows) or 1
+    for idx in range(0, len(rows), chunk_size):
+        yield rows[idx : idx + chunk_size]
+
+
 def upsert_event(event_type: str, payload: Dict[str, Any], neo4j) -> None:
     """Map event_type and payload into a cypher statement and execute it."""
     # TODO: implement mapping table and cypher generation.
@@ -100,6 +107,8 @@ def upsert_from_config(config: Dict[str, Any], data: Dict[str, List[Dict[str, An
           join_source_key: entity_id
           join_target_key: id
     """
+    sync_cfg = config.get("sync", {})
+    write_chunk_size = int(sync_cfg.get("neo4j_write_chunk_size", sync_cfg.get("page_size", 1000)))
     tables = config.get("tables", {})
     relationships = config.get("relationships", [])
 
@@ -116,18 +125,19 @@ def upsert_from_config(config: Dict[str, Any], data: Dict[str, List[Dict[str, An
         source_rows = _apply_filters(source_rows, table_filters)
         node_rows = _build_node_rows(source_rows, key_field, columns, include_extra_fields)
 
-        LOG.info("upserting nodes", extra={"label": label, "count": len(node_rows)})
+        LOG.info("upserting nodes label=%s count=%s", label, len(node_rows))
         if not node_rows:
             continue
 
-        neo4j.execute_many(
-            f"""
-            UNWIND $rows AS row
-            MERGE (n:{label} {{{key_field}: row.{key_field}}})
-            SET n += row
-            """,
-            node_rows,
-        )
+        for chunk in _chunk_rows(node_rows, write_chunk_size):
+            neo4j.execute_many(
+                f"""
+                UNWIND $rows AS row
+                MERGE (n:{label} {{{key_field}: row.{key_field}}})
+                SET n += row
+                """,
+                chunk,
+            )
 
     for rel in relationships:
         rel_type = rel["type"]
@@ -147,22 +157,20 @@ def upsert_from_config(config: Dict[str, Any], data: Dict[str, List[Dict[str, An
         source_rows = _apply_filters(source_rows, rel_filters)
         rel_rows = _build_rel_rows(source_rows, join_source_key, join_target_key)
 
-        LOG.info(
-            "upserting relationships",
-            extra={"type": rel_type, "count": len(rel_rows)},
-        )
+        LOG.info("upserting relationships type=%s count=%s", rel_type, len(rel_rows))
         if not rel_rows:
             continue
 
-        neo4j.execute_many(
-            f"""
-            UNWIND $rows AS row
-            MATCH (a:{from_label} {{{from_node_key}: row.from_key}})
-            MATCH (b:{to_label} {{{to_node_key}: row.to_key}})
-            MERGE (a)-[:{rel_type}]->(b)
-            """,
-            rel_rows,
-        )
+        for chunk in _chunk_rows(rel_rows, write_chunk_size):
+            neo4j.execute_many(
+                f"""
+                UNWIND $rows AS row
+                MATCH (a:{from_label} {{{from_node_key}: row.from_key}})
+                MATCH (b:{to_label} {{{to_node_key}: row.to_key}})
+                MERGE (a)-[:{rel_type}]->(b)
+                """,
+                chunk,
+            )
 
 
 def upsert_batch(layer: str, rows: Iterable[Dict[str, Any]], neo4j) -> None:
