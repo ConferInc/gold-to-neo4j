@@ -471,6 +471,203 @@ tables:
     columns:
       - id
 
+  # Reference only — loaded by recipes layer; needed for Cuisine preferences relationship
+  cuisines:
+    skip_upsert: true
+    label: Cuisine
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    columns:
+      - id
+
+  # ══════════════════════════════════════════════════════
+  # NEW TABLE ENTRIES — Full outbox trigger coverage
+  # ══════════════════════════════════════════════════════
+
+  # ── Node Tables ──────────────────────────────────────
+
+  b2c_customer_settings:
+    label: CustomerSettings
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: updated_at
+    columns:
+      - id
+      - b2c_customer_id
+      - units
+      - time_range_min
+      - time_range_max
+      - exploration
+      - health_weight
+      - time_weight
+      - popularity_weight
+      - personal_weight
+      - diversity_weight
+      - default_sort
+      - show_score_badge
+      - enable_reminders
+      - filter_calories_min
+      - filter_calories_max
+      - filter_protein_min
+      - filter_carbs_min
+      - filter_fat_min
+      - filter_fiber_min
+      - filter_sugar_max
+      - filter_sodium_max
+      - filter_max_time
+      - created_at
+      - updated_at
+
+  b2c_customer_weight_history:
+    label: WeightEntry
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: recorded_at
+    columns:
+      - id
+      - b2c_customer_id
+      - weight_kg
+      - recorded_at
+      - source
+      - notes
+      - created_at
+
+  recipe_ratings:
+    label: RecipeRating
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: created_at
+    columns:
+      - id
+      - recipe_id
+      - b2c_customer_id
+      - household_id
+      - rating
+      - feedback_text
+      - liked_aspects
+      - disliked_aspects
+      - would_make_again
+      - meal_plan_item_id
+      - created_at
+
+  shopping_lists:
+    label: ShoppingList
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: updated_at
+    columns:
+      - id
+      - household_id
+      - b2c_customer_id
+      - b2b_customer_id
+      - meal_plan_id
+      - list_name
+      - vendor_id
+      - total_estimated_cost
+      - status
+      - created_at
+      - updated_at
+
+  shopping_list_items:
+    label: ShoppingListItem
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: updated_at
+    columns:
+      - id
+      - shopping_list_id
+      - product_id
+      - ingredient_id
+      - item_name
+      - quantity
+      - unit
+      - category
+      - estimated_price
+      - actual_price
+      - is_purchased
+      - substituted_product_id
+      - notes
+      - created_at
+      - updated_at
+
+  household_preferences:
+    label: HouseholdPreference
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: created_at
+    columns:
+      - id
+      - household_id
+      - preference_type
+      - preference_value
+      - priority
+      - created_at
+
+  chat_sessions:
+    label: ChatSession
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    updated_at: last_activity_at
+    columns:
+      - id
+      - b2c_customer_id
+      - message_count
+      - last_intent
+      - created_at
+      - last_activity_at
+      - expires_at
+      # session_data excluded — unbounded JSONB chat blob, no GraphRAG value
+
+  # ── Join Tables (skip_upsert: true) ──────────────────
+
+  b2c_customer_cuisine_preferences:
+    skip_upsert: true
+    primary_key: b2c_customer_id  # composite PK (b2c_customer_id, cuisine_id) — no id column
+    schema_contract:
+      skip_validation: true
+    columns:
+      - b2c_customer_id
+      - cuisine_id
+
+  b2b_customer_allergens:
+    skip_upsert: true
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    safety_critical: true
+    columns:
+      - id
+      - b2b_customer_id
+      - allergen_id
+
+  b2b_customer_dietary_preferences:
+    skip_upsert: true
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    columns:
+      - id
+      - b2b_customer_id
+      - diet_id
+
+  b2b_customer_health_conditions:
+    skip_upsert: true
+    primary_key: id
+    schema_contract:
+      skip_validation: true
+    columns:
+      - id
+      - b2b_customer_id
+      - condition_id
+
 relationships:
   - name: customer_has_profile
     type: HAS_PROFILE
@@ -782,7 +979,7 @@ relationships:
     type: FOLLOWS_DIET
     source_table: b2b_customers
     target_table: dietary_preferences
-    join_table: b2b_dietary_preferences
+    join_table: b2b_customer_dietary_preferences
     join_source_key: b2b_customer_id
     join_target_key: diet_id
 
@@ -790,9 +987,9 @@ relationships:
     type: HAS_CONDITION
     source_table: b2b_customers
     target_table: health_conditions
-    join_table: b2b_health_conditions
+    join_table: b2b_customer_health_conditions
     join_source_key: b2b_customer_id
-    join_target_key: health_condition_id
+    join_target_key: condition_id
 
   - name: b2b_customer_is_allergic
     type: IS_ALLERGIC
@@ -802,13 +999,6 @@ relationships:
     join_source_key: b2b_customer_id
     join_target_key: allergen_id
 
-  - name: b2b_customer_has_condition
-    type: HAS_CONDITION
-    source_table: b2b_customers
-    target_table: health_conditions
-    join_table: b2b_health_conditions
-    join_source_key: b2b_customer_id
-    join_target_key: health_condition_id
 
   - name: b2b_customer_belongs_to_vendor
     type: BELONGS_TO_VENDOR
@@ -818,3 +1008,157 @@ relationships:
     join_source_key: id
     join_target_key: vendor_id
     updated_at: updated_at
+
+  # ══════════════════════════════════════════════════════
+  # NEW RELATIONSHIPS — Full GraphRAG coverage
+  # ══════════════════════════════════════════════════════
+
+  # ── Customer Settings & Preferences ──────────────────
+
+  - name: customer_has_settings
+    type: HAS_SETTINGS
+    source_table: b2c_customers
+    target_table: b2c_customer_settings
+    join_table: b2c_customer_settings
+    join_source_key: b2c_customer_id
+    join_target_key: id
+
+  - name: customer_has_weight_entry
+    type: HAS_WEIGHT_ENTRY
+    source_table: b2c_customers
+    target_table: b2c_customer_weight_history
+    join_table: b2c_customer_weight_history
+    join_source_key: b2c_customer_id
+    join_target_key: id
+
+  - name: customer_prefers_cuisine
+    type: PREFERS_CUISINE
+    source_table: b2c_customers
+    target_table: cuisines
+    join_table: b2c_customer_cuisine_preferences
+    join_source_key: b2c_customer_id
+    join_target_key: cuisine_id
+
+  - name: customer_has_streak
+    type: HAS_STREAK
+    source_table: b2c_customers
+    target_table: meal_log_streaks
+    join_table: meal_log_streaks
+    join_source_key: b2c_customer_id
+    join_target_key: id
+
+  - name: customer_has_chat_session
+    type: HAS_CHAT_SESSION
+    source_table: b2c_customers
+    target_table: chat_sessions
+    join_table: chat_sessions
+    join_source_key: b2c_customer_id
+    join_target_key: id
+
+  - name: household_has_preference
+    type: HAS_PREFERENCE
+    source_table: households
+    target_table: household_preferences
+    join_table: household_preferences
+    join_source_key: household_id
+    join_target_key: id
+
+  # ── Recipe Ratings ───────────────────────────────────
+
+  - name: customer_rated_recipe_node
+    type: RATED_RECIPE
+    source_table: b2c_customers
+    target_table: recipe_ratings
+    join_table: recipe_ratings
+    join_source_key: b2c_customer_id
+    join_target_key: id
+
+  - name: household_rated_recipe
+    type: RATED_RECIPE
+    source_table: households
+    target_table: recipe_ratings
+    join_table: recipe_ratings
+    join_source_key: household_id
+    join_target_key: id
+
+  - name: rating_of_recipe
+    type: RATES
+    source_table: recipe_ratings
+    target_table: recipes
+    join_table: recipe_ratings
+    join_source_key: id
+    join_target_key: recipe_id
+
+  - name: rating_from_plan_item
+    type: RATED_FROM
+    source_table: recipe_ratings
+    target_table: meal_plan_items
+    join_table: recipe_ratings
+    join_source_key: id
+    join_target_key: meal_plan_item_id
+
+  # ── Shopping Lists (full GraphRAG coverage) ──────────
+
+  - name: customer_has_shopping_list
+    type: HAS_SHOPPING_LIST
+    source_table: b2c_customers
+    target_table: shopping_lists
+    join_table: shopping_lists
+    join_source_key: b2c_customer_id
+    join_target_key: id
+
+  - name: household_has_shopping_list
+    type: HAS_SHOPPING_LIST
+    source_table: households
+    target_table: shopping_lists
+    join_table: shopping_lists
+    join_source_key: household_id
+    join_target_key: id
+
+  - name: shopping_list_from_meal_plan
+    type: FROM_MEAL_PLAN
+    source_table: shopping_lists
+    target_table: meal_plans
+    join_table: shopping_lists
+    join_source_key: id
+    join_target_key: meal_plan_id
+
+  - name: shopping_list_at_vendor
+    type: SHOPS_AT
+    source_table: shopping_lists
+    target_table: vendors
+    join_table: shopping_lists
+    join_source_key: id
+    join_target_key: vendor_id
+
+  - name: shopping_list_contains_item
+    type: CONTAINS_ITEM
+    source_table: shopping_lists
+    target_table: shopping_list_items
+    join_table: shopping_list_items
+    join_source_key: shopping_list_id
+    join_target_key: id
+
+  - name: shopping_item_of_product
+    type: OF_PRODUCT
+    source_table: shopping_list_items
+    target_table: products
+    join_table: shopping_list_items
+    join_source_key: id
+    join_target_key: product_id
+
+  - name: shopping_item_of_ingredient
+    type: OF_INGREDIENT
+    source_table: shopping_list_items
+    target_table: ingredients
+    join_table: shopping_list_items
+    join_source_key: id
+    join_target_key: ingredient_id
+
+  - name: shopping_item_substituted_with
+    type: SUBSTITUTED_WITH
+    source_table: shopping_list_items
+    target_table: products
+    join_table: shopping_list_items
+    join_source_key: id
+    join_target_key: substituted_product_id
