@@ -40,8 +40,13 @@ def main() -> None:
     """
     global _SHUTDOWN
 
-    signal.signal(signal.SIGTERM, _handle_signal)
-    signal.signal(signal.SIGINT, _handle_signal)
+    # Signal handlers can only be registered from the main thread.
+    # When running as a daemon thread (via orchestrator), skip registration
+    # and rely on the daemon thread being killed when the main process exits.
+    import threading
+    if threading.current_thread() is threading.main_thread():
+        signal.signal(signal.SIGTERM, _handle_signal)
+        signal.signal(signal.SIGINT, _handle_signal)
 
     poll_interval = int(os.getenv("NEO4J_REALTIME_POLL_INTERVAL", "5"))
 
