@@ -1,5 +1,8 @@
 sync:
   mode: incremental
+  # After each Neo4j chunk, persist resume markers in state_file under keys
+  # _neo4j_node_progress / _neo4j_rel_progress so a crashed run skips already-committed rows.
+  persist_neo4j_chunk_progress: true
   state_file: ingredients_state.json
   page_size: 1000
   retries: 3
