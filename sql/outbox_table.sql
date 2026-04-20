@@ -1,10 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════
--- Outbox table for customer realtime events
--- Lives in the gold schema alongside the source tables.
+-- gold.outbox_events — Transactional outbox for realtime Neo4j sync
 --
--- ⚠️  REFERENCE ONLY — Do NOT execute until all pipeline code is
---     deployed and the realtime worker is confirmed running.
---     See: implementation_plan.md → Deferred Phase
+-- Each row captures a single domain event (INSERT/UPDATE/DELETE)
+-- from a gold schema table, ready for the realtime worker to poll.
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS gold.outbox_events (

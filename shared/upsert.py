@@ -75,16 +75,23 @@ def upsert_event(event_type: str, payload: Dict[str, Any], neo4j) -> None:
             # Build MERGE + SET from configured columns
             columns = table_cfg.get("columns", list(payload.keys()))
             row = {col: payload.get(col) for col in columns}
-            set_parts = [f"n.{col} = row.{col}" for col in columns if col != pk]
+            set_parts = [f"n.{col} = $row.{col}" for col in columns if col != pk]
             set_clause = ", ".join(set_parts) if set_parts else "n._updated = true"
             neo4j.execute(
-                f"MERGE (n:{label} {{{pk}: row.{pk}}}) SET {set_clause}",
+                f"MERGE (n:{label} {{{pk}: $row.{pk}}}) SET {set_clause}",
                 {"row": row},
             )
 
         LOG.info(
             "upsert_event node",
             extra={"label": label, "op": operation, "pk": pk_val},
+        )
+
+        # Also create/update relationship edges for dual-role tables
+        # (tables that are both nodes AND join_table in relationships).
+        # Safe: _upsert_relationships_for_event skips non-matching tables.
+        _upsert_relationships_for_event(
+            table_name, operation, payload, config, neo4j,
         )
 
     # ── Join/relationship tables (skip_upsert: true) ──
