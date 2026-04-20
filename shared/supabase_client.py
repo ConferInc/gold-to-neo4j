@@ -59,7 +59,7 @@ class SupabaseClient:
 
     def fetch_pending_events(self, limit: int = 100, now: Optional[str] = None) -> list[dict[str, Any]]:
         """Fetch pending outbox events, optionally respecting next_retry_at."""
-        query = self._client.table("outbox_events").select("*").eq("status", "pending")
+        query = self._client.schema("gold").from_("outbox_events").select("*").eq("status", "pending")
         if now:
             # Filter in database for safety, but fallback to local filtering if needed.
             try:
@@ -80,7 +80,7 @@ class SupabaseClient:
     def mark_event_processed(self, event_id: str) -> None:
         """Mark an outbox event as processed."""
         _ = (
-            self._client.table("outbox_events")
+            self._client.schema("gold").from_("outbox_events")
             .update({"status": "processed"})
             .eq("id", event_id)
             .execute()
@@ -94,7 +94,7 @@ class SupabaseClient:
             "error_message": error_message[:500],
         }
         _ = (
-            self._client.table("outbox_events")
+            self._client.schema("gold").from_("outbox_events")
             .update(payload)
             .eq("id", event_id)
             .execute()
@@ -116,7 +116,7 @@ class SupabaseClient:
             "retry_count": retry_count,
         }
         _ = (
-            self._client.table("outbox_events")
+            self._client.schema("gold").from_("outbox_events")
             .update(payload)
             .eq("id", event_id)
             .execute()
@@ -130,7 +130,7 @@ class SupabaseClient:
             "error_message": error_message[:500],
         }
         _ = (
-            self._client.table("outbox_events")
+            self._client.schema("gold").from_("outbox_events")
             .update(payload)
             .eq("id", event_id)
             .execute()
