@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from shared.logging import get_logger
 from shared.supabase_client import SupabaseClient
 from shared.neo4j_client import Neo4jClient, is_auth_error, is_non_retryable_write_error
-from shared.upsert import upsert_from_config
+from shared.upsert import clear_neo4j_chunk_progress, upsert_from_config
 from shared.run_summary import append_run_summary
 from shared.schema_validation import build_table_plan, normalize_rows
 
@@ -42,8 +42,10 @@ def save_state(state_path: Path, state: Dict[str, Any]) -> None:
 
 def _max_checkpoint(state: Dict[str, Any]) -> str | None:
     max_val = None
-    for val in state.values():
-        if val and (max_val is None or val > max_val):
+    for key, val in state.items():
+        if key.startswith("_"):
+            continue
+        if val and isinstance(val, str) and (max_val is None or val > max_val):
             max_val = val
     return max_val
 
@@ -118,7 +120,8 @@ def main() -> None:
                 for row in data.get(table_name, []):
                     row[field_name] = lookup_map.get(row.get(lookup_key))
 
-        upsert_from_config(config, data, neo4j)
+        upsert_from_config(config, data, neo4j, state=state, state_path=state_path)
+        clear_neo4j_chunk_progress(state)
 
         # Update checkpoints for each table based on max updated_at in fetched rows.
         for table_name, table_cfg in tables_cfg.items():
