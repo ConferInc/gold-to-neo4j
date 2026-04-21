@@ -58,7 +58,11 @@ class SupabaseClient:
         return rows
 
     def fetch_pending_events(self, limit: int = 100, now: Optional[str] = None) -> list[dict[str, Any]]:
-        """Fetch pending outbox events, optionally respecting next_retry_at."""
+        """Fetch pending outbox events, optionally respecting next_retry_at.
+
+        NOTE: This is the legacy single-worker fetch method. For parallel
+        workers, use claim_outbox_events via the rpc() method instead.
+        """
         query = self._client.schema("gold").from_("outbox_events").select("*").eq("status", "pending")
         if now:
             # Filter in database for safety, but fallback to local filtering if needed.
@@ -76,6 +80,33 @@ class SupabaseClient:
                     filtered.append(event)
             return filtered
         return events
+
+    # ── Parallel Worker Methods (Phase 2) ─────────────────────
+
+    def rpc(self, function_name: str, params: Dict[str, Any]) -> Any:
+        """Call a PostgreSQL function via Supabase RPC.
+
+        Uses the 'gold' schema for all outbox-related functions.
+        Returns the function result data.
+        """
+        response = self._client.schema("gold").rpc(function_name, params).execute()
+        return response.data
+
+    def mark_events_processed_bulk(self, event_ids: List[str]) -> None:
+        """Mark a batch of events as processed using the SQL function.
+
+        Calls gold.mark_events_processed(p_event_ids) which atomically
+        sets status='processed', clears locks, and sets processed_at.
+        """
+        self.rpc("mark_events_processed", {"p_event_ids": event_ids})
+
+    def release_stale_locks(self, timeout_seconds: int = 300) -> int:
+        """Release stale locks from crashed workers.
+
+        Returns the number of events released.
+        """
+        result = self.rpc("release_stale_locks", {"p_timeout_seconds": timeout_seconds})
+        return int(result) if result else 0
 
     def mark_event_processed(self, event_id: str) -> None:
         """Mark an outbox event as processed."""

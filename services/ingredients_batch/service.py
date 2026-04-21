@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from shared.logging import get_logger
 from shared.supabase_client import SupabaseClient
 from shared.neo4j_client import Neo4jClient, is_auth_error, is_non_retryable_write_error
-from shared.upsert import clear_neo4j_chunk_progress, upsert_from_config
+from shared.upsert import upsert_from_config
 from shared.run_summary import append_run_summary
 from shared.schema_validation import build_table_plan, normalize_rows
 
@@ -120,8 +120,14 @@ def main() -> None:
                 for row in data.get(table_name, []):
                     row[field_name] = lookup_map.get(row.get(lookup_key))
 
-        upsert_from_config(config, data, neo4j, state=state, state_path=state_path)
-        clear_neo4j_chunk_progress(state)
+        # Wrap all Neo4j writes in an explicit transaction (Phase 3)
+        total_rows = sum(len(v) for v in data.values())
+        with neo4j.begin_transaction() as tx:
+            upsert_from_config(config, data, neo4j, tx=tx)
+        LOG.info(
+            "neo4j_tx_committed",
+            extra={"layer": "ingredients", "total_rows": total_rows},
+        )
 
         # Update checkpoints for each table based on max updated_at in fetched rows.
         for table_name, table_cfg in tables_cfg.items():

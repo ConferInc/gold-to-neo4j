@@ -230,7 +230,7 @@ def _build_rel_rows(
     return rows
 
 
-def upsert_from_config(config: Dict[str, Any], data: Dict[str, List[Dict[str, Any]]], neo4j) -> None:
+def upsert_from_config(config: Dict[str, Any], data: Dict[str, List[Dict[str, Any]]], neo4j, *, tx=None) -> None:
     """
     Generic config-driven upsert for schema:
       tables:
@@ -245,11 +245,22 @@ def upsert_from_config(config: Dict[str, Any], data: Dict[str, List[Dict[str, An
           join_table: nutrition_facts
           join_source_key: entity_id
           join_target_key: id
+
+    If ``tx`` is provided, all writes go through the explicit transaction
+    (execute_many_in_tx) for atomic all-or-nothing semantics.
+    Otherwise, auto-commit sessions are used (backward compatible).
     """
     sync_cfg = config.get("sync", {})
     write_chunk_size = int(sync_cfg.get("neo4j_write_chunk_size", sync_cfg.get("page_size", 1000)))
     tables = config.get("tables", {})
     relationships = config.get("relationships", [])
+
+    def _write_batch(cypher: str, chunk):
+        """Route writes through TX or auto-commit based on context."""
+        if tx:
+            neo4j.execute_many_in_tx(tx, cypher, chunk)
+        else:
+            neo4j.execute_many(cypher, chunk)
 
     for table_name, table_cfg in tables.items():
         if table_cfg.get("skip_upsert", False):
@@ -269,7 +280,7 @@ def upsert_from_config(config: Dict[str, Any], data: Dict[str, List[Dict[str, An
             continue
 
         for chunk in _chunk_rows(node_rows, write_chunk_size):
-            neo4j.execute_many(
+            _write_batch(
                 f"""
                 UNWIND $rows AS row
                 MERGE (n:{label} {{{key_field}: row.{key_field}}})
@@ -301,7 +312,7 @@ def upsert_from_config(config: Dict[str, Any], data: Dict[str, List[Dict[str, An
             continue
 
         for chunk in _chunk_rows(rel_rows, write_chunk_size):
-            neo4j.execute_many(
+            _write_batch(
                 f"""
                 UNWIND $rows AS row
                 MATCH (a:{from_label} {{{from_node_key}: row.from_key}})

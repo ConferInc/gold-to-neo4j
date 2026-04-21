@@ -90,6 +90,49 @@ class Neo4jClient:
         with self._driver.session(database=self.database) as session:
             session.run(cypher, {"rows": list(rows)}).consume()
 
+    # ── Explicit Transaction Support (Phase 3) ────────
+
+    def begin_transaction(self):
+        """Start an explicit transaction for atomic batch operations.
+
+        Usage::
+
+            with neo4j.begin_transaction() as tx:
+                neo4j.execute_in_tx(tx, "MERGE (n:Foo {id: $id})", {"id": 1})
+                neo4j.execute_many_in_tx(tx, "UNWIND $rows AS row ...", rows)
+            # Auto-commits on success, auto-rolls-back on exception.
+
+        Returns a context manager that yields a Neo4j Transaction object.
+        """
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _tx_context():
+            session = self._driver.session(database=self.database)
+            tx = session.begin_transaction()
+            try:
+                yield tx
+                # If no exception, commit
+                if tx.closed() is False:
+                    tx.commit()
+            except Exception:
+                # Roll back on any error
+                if tx.closed() is False:
+                    tx.rollback()
+                raise
+            finally:
+                session.close()
+
+        return _tx_context()
+
+    def execute_in_tx(self, tx, cypher: str, parameters: Optional[Dict[str, Any]] = None) -> None:
+        """Execute a cypher statement within an existing transaction."""
+        tx.run(cypher, parameters or {}).consume()
+
+    def execute_many_in_tx(self, tx, cypher: str, rows: Iterable[Dict[str, Any]]) -> None:
+        """Execute an UNWIND batch within an existing transaction."""
+        tx.run(cypher, {"rows": list(rows)}).consume()
+
     def count_nodes(self, label: str) -> int:
         """Count nodes for a given label."""
         cypher = f"MATCH (n:{label}) RETURN count(n) AS cnt"
