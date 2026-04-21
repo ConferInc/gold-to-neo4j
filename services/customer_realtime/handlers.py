@@ -22,7 +22,12 @@ def _validate_payload(event_type: str, payload: Dict[str, Any]) -> None:
 
 
 def handle_event(event: Dict[str, Any], supabase, neo4j) -> None:
-    """Map a single outbox event to graph operations and upsert into Neo4j."""
+    """Map a single outbox event to graph operations and upsert into Neo4j.
+
+    Note: This function does NOT mark the event as processed.
+    The caller (process_batch) handles bulk marking after all events
+    in a batch succeed, ensuring atomic lock cleanup and processed_at.
+    """
     event_type = event.get("event_type")
     payload = event.get("payload", {})
 
@@ -31,7 +36,3 @@ def handle_event(event: Dict[str, Any], supabase, neo4j) -> None:
 
     # Central mapping table should live here or in config later.
     upsert_event(event_type, payload, neo4j)
-
-    event_id = event.get("id")
-    if event_id:
-        supabase.mark_event_processed(str(event_id))

@@ -3,6 +3,9 @@
 --
 -- Each row captures a single domain event (INSERT/UPDATE/DELETE)
 -- from a gold schema table, ready for the realtime worker to poll.
+--
+-- Parallel workers claim events atomically via SKIP LOCKED.
+-- See: claim_events.sql for the claim/mark/release functions.
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS gold.outbox_events (
@@ -17,19 +20,32 @@ CREATE TABLE IF NOT EXISTS gold.outbox_events (
     error_code    text,
     error_message text,
     needs_review  boolean     NOT NULL DEFAULT false,
-    created_at    timestamptz NOT NULL DEFAULT now()
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    -- ── Parallel worker columns (Phase 1) ──
+    locked_by     text,                   -- worker_id that claimed this event
+    locked_at     timestamptz,            -- when the claim was made
+    processed_at  timestamptz             -- when processing completed
 );
 
--- Partial index for the poller: only pending events that are ready
-CREATE INDEX IF NOT EXISTS idx_outbox_pending
+-- ── Indexes for parallel worker claiming ──────────────────────
+
+-- Primary claiming index: used by SELECT FOR UPDATE SKIP LOCKED
+CREATE INDEX IF NOT EXISTS idx_outbox_claimable
     ON gold.outbox_events (created_at)
-    WHERE status = 'pending';
+    WHERE status = 'pending' AND locked_by IS NULL;
+
+-- Stale lock recovery: find events claimed but never completed
+CREATE INDEX IF NOT EXISTS idx_outbox_stale_locks
+    ON gold.outbox_events (locked_at)
+    WHERE status = 'pending' AND locked_by IS NOT NULL;
+
+-- Cleanup index: efficiently find old processed events for purging
+CREATE INDEX IF NOT EXISTS idx_outbox_processed_cleanup
+    ON gold.outbox_events (processed_at)
+    WHERE status = 'processed';
 
 -- Index for retry scheduling
 CREATE INDEX IF NOT EXISTS idx_outbox_retry
     ON gold.outbox_events (next_retry_at)
     WHERE status = 'pending' AND next_retry_at IS NOT NULL;
 
--- Optional: auto-cleanup events older than 30 days (run via pg_cron)
--- DELETE FROM gold.outbox_events
--- WHERE status IN ('processed', 'failed') AND created_at < now() - interval '30 days';

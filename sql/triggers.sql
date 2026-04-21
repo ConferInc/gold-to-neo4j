@@ -114,13 +114,9 @@ CREATE TRIGGER trg_outbox_meal_log_streaks
     AFTER INSERT OR UPDATE OR DELETE ON gold.meal_log_streaks
     FOR EACH ROW EXECUTE FUNCTION gold.fn_outbox_insert();
 
-CREATE TRIGGER trg_outbox_b2b_customers
-    AFTER INSERT OR UPDATE OR DELETE ON gold.b2b_customers
-    FOR EACH ROW EXECUTE FUNCTION gold.fn_outbox_insert();
-
-CREATE TRIGGER trg_outbox_b2b_health_profiles
-    AFTER INSERT OR UPDATE OR DELETE ON gold.b2b_customer_health_profiles
-    FOR EACH ROW EXECUTE FUNCTION gold.fn_outbox_insert();
+-- B2B triggers REMOVED — moved to batch sync lane (customers layer).
+-- B2B data is pipeline-managed, not user-interactive.
+-- See: remove_webhook_triggers.sql for the DROP statements.
 
 -- NEW: 7 node tables added for full outbox coverage
 
@@ -175,14 +171,5 @@ CREATE TRIGGER trg_outbox_cuisine_prefs
     AFTER INSERT OR DELETE ON gold.b2c_customer_cuisine_preferences
     FOR EACH ROW EXECUTE FUNCTION gold.fn_outbox_insert('b2c_customer_id', 'cuisine_id');
 
-CREATE TRIGGER trg_outbox_b2b_allergens
-    AFTER INSERT OR DELETE ON gold.b2b_customer_allergens
-    FOR EACH ROW EXECUTE FUNCTION gold.fn_outbox_insert();
-
-CREATE TRIGGER trg_outbox_b2b_dietary_prefs
-    AFTER INSERT OR DELETE ON gold.b2b_customer_dietary_preferences
-    FOR EACH ROW EXECUTE FUNCTION gold.fn_outbox_insert();
-
-CREATE TRIGGER trg_outbox_b2b_health_conditions
-    AFTER INSERT OR DELETE ON gold.b2b_customer_health_conditions
-    FOR EACH ROW EXECUTE FUNCTION gold.fn_outbox_insert();
+-- B2B join triggers REMOVED — moved to batch sync lane (customers layer).
+-- See: remove_webhook_triggers.sql for the DROP statements.

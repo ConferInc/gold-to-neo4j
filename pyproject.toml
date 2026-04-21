@@ -24,5 +24,12 @@ dependencies = [
 [tool.setuptools.packages.find]
 include = ["shared*", "services*"]
 
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0", "pytest-mock>=3.12.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
 [project.scripts]
 gold-to-neo4j = "services.catalog_batch.run:main"
