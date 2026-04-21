@@ -18,7 +18,7 @@ import pytest
 def mock_env(monkeypatch):
     """Set safe defaults for all env vars so clients don't connect to real services."""
     monkeypatch.setenv("SUPABASE_URL", "https://test-project.supabase.co")
-    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-key-1234567890")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-key-1234567890")  # gitleaks:allow
     monkeypatch.setenv("NEO4J_URI", "bolt://localhost:7687")
     monkeypatch.setenv("NEO4J_USER", "neo4j")
     monkeypatch.setenv("NEO4J_PASSWORD", "test-password")
