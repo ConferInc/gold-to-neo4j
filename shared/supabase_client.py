@@ -145,6 +145,8 @@ class SupabaseClient:
             "error_message": error_message[:500],
             "next_retry_at": next_retry_at,
             "retry_count": retry_count,
+            "locked_by": None,      # Release lock so event is claimable at next_retry_at
+            "locked_at": None,
         }
         _ = (
             self._client.schema("gold").from_("outbox_events")

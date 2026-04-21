@@ -256,6 +256,16 @@ class OutboxWorker:
                 LOG.info("batch_complete", extra=result)
 
             except Exception as exc:
+                # Fatal errors (e.g., Neo4j auth failure) should stop the worker
+                # instead of looping forever. Auth errors are raised by
+                # process_batch → is_auth_error check.
+                if is_auth_error(exc):
+                    LOG.error(
+                        "FATAL_neo4j_auth_failure — stopping worker",
+                        extra={"worker_id": self.worker_id, "error": str(exc)},
+                    )
+                    break
+
                 LOG.error(
                     "worker_loop_error",
                     extra={"worker_id": self.worker_id, "error": str(exc)},

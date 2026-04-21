@@ -72,12 +72,12 @@ LEGACY_STATE_PATH = ROOT / "state" / ".sync_state.json"
 def _layer_lock_id(layer: str) -> int:
     """Derive a stable advisory lock ID from a layer name.
 
-    Uses a hash to map layer names to int4 range (PostgreSQL advisory
-    locks require a bigint key, but we stay in int4 for safety).
-    All lock IDs are in a reserved namespace (0xBATCH0000 + hash).
+    Uses an MD5 hash of "batch_sync_{layer}" truncated to 8 hex chars,
+    then masked to the signed 32-bit range (0..0x7FFFFFFF) for safe
+    use with PostgreSQL advisory lock functions.
     """
-    h = int(hashlib.md5(f"batch_sync_{layer}".encode()).hexdigest()[:8], 16)
-    return h
+    raw = int(hashlib.md5(f"batch_sync_{layer}".encode()).hexdigest()[:8], 16)
+    return raw & 0x7FFFFFFF
 
 
 def _try_advisory_lock(supabase: SupabaseClient, layer: str) -> bool:
@@ -296,12 +296,21 @@ def main(argv: Iterable[str] | None = None) -> int:
                 phase_results = _run_phase(phase_layers, supabase)
                 tool_metrics.extend(phase_results)
 
-                # Check for failures — stop if any layer in this phase failed
-                failed = [m for m in phase_results if m.get("status") == "failed"]
-                if failed:
+                # Check for failures or skips — stop if any layer didn't complete
+                # A "skipped" layer means another instance holds the advisory lock
+                # and is already running the sync — proceeding would violate
+                # the dependency order (e.g., running recipes before ingredients).
+                blocked = [m for m in phase_results if m.get("status") in ("failed", "skipped")]
+                if blocked:
                     LOG.error(
-                        "phase_failed_stopping",
-                        extra={"phase": phase_idx, "failed_layers": [m["tool_name"] for m in failed]},
+                        "phase_blocked_stopping",
+                        extra={
+                            "phase": phase_idx,
+                            "blocked_layers": [
+                                {"tool": m["tool_name"], "status": m["status"]}
+                                for m in blocked
+                            ],
+                        },
                     )
                     break
 
