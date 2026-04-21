@@ -165,17 +165,32 @@ class OutboxWorker:
 
         # Batch mark all successfully processed events
         if processed_ids:
-            try:
-                self.supabase.mark_events_processed_bulk(processed_ids)
-            except Exception as exc:
-                LOG.error(
-                    "mark_processed_failed",
-                    extra={
-                        "worker_id": self.worker_id,
-                        "event_ids": processed_ids,
-                        "error": str(exc),
-                    },
-                )
+            mark_attempts = 3
+            for attempt in range(1, mark_attempts + 1):
+                try:
+                    self.supabase.mark_events_processed_bulk(processed_ids)
+                    break
+                except Exception as exc:
+                    if attempt == mark_attempts:
+                        LOG.error(
+                            "mark_processed_failed_final",
+                            extra={
+                                "worker_id": self.worker_id,
+                                "event_ids": processed_ids,
+                                "error": str(exc),
+                                "attempts": mark_attempts,
+                            },
+                        )
+                        raise  # Escalate — events would remain in inconsistent state
+                    LOG.warning(
+                        "mark_processed_retry",
+                        extra={
+                            "worker_id": self.worker_id,
+                            "attempt": attempt,
+                            "error": str(exc),
+                        },
+                    )
+                    _time.sleep(attempt)  # 1s, 2s backoff
 
         return {
             "worker_id": self.worker_id,

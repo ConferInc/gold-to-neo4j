@@ -103,13 +103,14 @@ class TestProcessBatch:
     def test_successful_events_marked_processed(self, mock_handle, sample_outbox_event):
         """Successfully processed events are bulk-marked as processed."""
         events = [sample_outbox_event(event_id="evt-1"), sample_outbox_event(event_id="evt-2")]
-        mock_handle.return_value = None  # Success
+        mock_handle.return_value = None  # Success — handle_event does NOT mark individually
         worker = self._make_worker()
 
         result = worker.process_batch(events)
 
         assert result["processed"] == 2
         assert result["failed"] == 0
+        # Bulk mark is the single source of truth (no per-event marking)
         worker.supabase.mark_events_processed_bulk.assert_called_once_with(["evt-1", "evt-2"])
 
     @patch("services.customer_realtime.service.handle_event")
