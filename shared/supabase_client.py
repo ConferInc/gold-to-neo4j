@@ -108,6 +108,24 @@ class SupabaseClient:
         result = self.rpc("release_stale_locks", {"p_timeout_seconds": timeout_seconds})
         return int(result) if result else 0
 
+    def release_worker_locks(self, worker_id: str) -> int:
+        """Release all locks held by a specific worker.
+
+        Used during graceful shutdown to immediately free claimed-but-
+        unprocessed events so they can be picked up by other workers
+        without waiting for stale lock timeout.
+
+        Returns the number of events released.
+        """
+        result = (
+            self._client.schema("gold").from_("outbox_events")
+            .update({"locked_by": None, "locked_at": None})
+            .eq("locked_by", worker_id)
+            .eq("status", "pending")
+            .execute()
+        )
+        return len(result.data) if result.data else 0
+
     def mark_event_processed(self, event_id: str) -> None:
         """Mark an outbox event as processed."""
         _ = (

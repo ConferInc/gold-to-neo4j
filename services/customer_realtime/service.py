@@ -288,15 +288,22 @@ class OutboxWorker:
                 )
                 _time.sleep(self.poll_interval)
 
-            # Brief pause between batches to avoid tight-looping
-            if not _SHUTDOWN:
-                _time.sleep(0.5)
+        # ── Graceful shutdown: release any claimed-but-unprocessed events ──
+        try:
+            released = self.supabase.release_worker_locks(self.worker_id)
+            if released:
+                LOG.info(
+                    "shutdown_released_locks",
+                    extra={"worker_id": self.worker_id, "released": released},
+                )
+        except Exception as exc:
+            LOG.warning(
+                "shutdown_release_failed",
+                extra={"worker_id": self.worker_id, "error": str(exc)},
+            )
 
         self.neo4j.close()
-        LOG.info(
-            "outbox_worker_stopped",
-            extra={"worker_id": self.worker_id},
-        )
+        LOG.info("outbox_worker_stopped", extra={"worker_id": self.worker_id})
 
 
 # ══════════════════════════════════════════════════════
