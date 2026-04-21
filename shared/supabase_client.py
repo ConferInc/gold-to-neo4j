@@ -141,6 +141,8 @@ class SupabaseClient:
             "status": "failed",
             "error_code": error_code,
             "error_message": error_message[:500],
+            "locked_by": None,
+            "locked_at": None,
         }
         _ = (
             self._client.schema("gold").from_("outbox_events")
@@ -179,6 +181,8 @@ class SupabaseClient:
             "needs_review": True,
             "error_code": error_code,
             "error_message": error_message[:500],
+            "locked_by": None,
+            "locked_at": None,
         }
         _ = (
             self._client.schema("gold").from_("outbox_events")
