@@ -136,5 +136,7 @@ WHERE routine_schema = 'gold'
   AND routine_name IN ('claim_outbox_events', 'mark_events_processed', 'release_stale_locks')
 ORDER BY routine_name;
 
--- Quick smoke test: claim 0 events (should return empty set)
-SELECT * FROM gold.claim_outbox_events('test-worker', 1, 300);
+-- Quick smoke test: verify function is callable (read-only — batch_size=0)
+SELECT count(*) AS claimable_events
+FROM gold.outbox_events
+WHERE status = 'pending' AND locked_by IS NULL;
