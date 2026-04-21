@@ -291,6 +291,11 @@ class OutboxWorker:
 def main() -> None:
     """Single-worker entry point (backward compatible).
 
+    .. deprecated:: v0.2.0
+        This entry point will be removed in v0.3.0. For multi-worker mode,
+        use the orchestrator API startup which reads NEO4J_REALTIME_WORKERS.
+        For standalone usage, instantiate OutboxWorker directly.
+
     When run standalone (python -m services.customer_realtime.service),
     starts a single OutboxWorker. For multi-worker mode, use the
     orchestrator API startup which reads NEO4J_REALTIME_WORKERS.

@@ -117,11 +117,11 @@ ORDER BY failure_count DESC;
 --     $$SELECT gold.cleanup_processed_events(7)$$
 -- );
 
--- Job 2: Release stale locks every 5 minutes
+-- Job 2: Release stale locks every 5 minutes (600s threshold = 2× cron interval for safety)
 -- SELECT cron.schedule(
 --     'outbox_release_stale_locks',
 --     '*/5 * * * *',
---     $$SELECT gold.release_stale_locks(300)$$
+--     $$SELECT gold.release_stale_locks(600)$$
 -- );
 
 
