@@ -426,3 +426,78 @@ def write_semantic_embeddings(
 
 def normalize_label_name(label: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_]", "", label)
+
+
+def embed_node_inline(
+    neo4j: Neo4jClient,
+    label: str,
+    node_id: Any,
+    payload: Dict[str, Any],
+    *,
+    config: Optional[Dict[str, Any]] = None,
+) -> bool:
+    """Generate and write a semantic embedding for a single node (best-effort).
+
+    Used by the realtime path to embed a node immediately after upsert.
+    The ``payload`` dict contains the node properties from the outbox event,
+    so no Neo4j re-fetch is needed.
+
+    Parameters
+    ----------
+    neo4j : Neo4jClient
+        Active Neo4j connection.
+    label : str
+        The Neo4j node label (e.g. ``"B2C_Customer"``).
+    node_id : Any
+        Primary key value of the node.
+    payload : dict
+        Node properties from the outbox event (already in memory).
+    config : dict, optional
+        Pre-loaded embedding config.  If ``None``, loads from disk.
+
+    Returns
+    -------
+    bool
+        ``True`` if the embedding was written successfully.
+    """
+    try:
+        cfg = config or load_embedding_config()
+        rules = get_semantic_rules(cfg)
+        rule = rules.get(label)
+        if not rule:
+            return False
+
+        properties = list(rule.get("properties") or [])
+        if not properties:
+            return False  # e.g. MealLog with empty properties list
+
+        separator = rule.get("separator", " ")
+        text = build_text_from_node(payload, properties, separator)
+        if not text:
+            return False
+
+        embeddings = embed_texts_python([text])
+        if not embeddings or embeddings[0] is None:
+            return False
+
+        write_property = cfg.get("semantic", {}).get(
+            "write_property", "semanticEmbedding"
+        )
+        id_property = "id"
+        id_prop = _cypher_prop(id_property)
+        write_prop = _cypher_prop(write_property)
+
+        cypher = f"""
+        MATCH (n:{label})
+        WHERE n.{id_prop} = $node_id
+        SET n.{write_prop} = $embedding
+        """
+        neo4j.execute(cypher, {"node_id": node_id, "embedding": embeddings[0]})
+        return True
+
+    except Exception as exc:
+        LOG.warning(
+            "embed_node_inline_failed",
+            extra={"label": label, "node_id": str(node_id), "error": str(exc)},
+        )
+        return False
