@@ -13,12 +13,18 @@ class EventValidationError(ValueError):
 
 
 def _validate_payload(event_type: str, payload: Dict[str, Any]) -> None:
+    """Validate an outbox event payload before processing.
+
+    Only the row's primary key ("id") is required to be non-null.
+    Other ``*_id`` foreign-key columns (e.g. silver_customer_id,
+    b2b_customer_id, original_recipe_id) are legitimately nullable
+    for B2C-only data and are handled gracefully by the upsert layer.
+    """
     if not isinstance(payload, dict):
         raise EventValidationError(f"{event_type}: payload must be an object")
 
-    for key, value in payload.items():
-        if key.endswith("_id") and value is None:
-            raise EventValidationError(f"{event_type}: {key} cannot be null")
+    if "id" in payload and payload["id"] is None:
+        raise EventValidationError(f"{event_type}: primary key 'id' cannot be null")
 
 
 def handle_event(event: Dict[str, Any], supabase, neo4j) -> None:
