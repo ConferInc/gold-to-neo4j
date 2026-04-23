@@ -129,6 +129,14 @@ def main() -> None:
             extra={"layer": "ingredients", "total_rows": total_rows},
         )
 
+        # Best-effort semantic embedding pass (post-commit)
+        try:
+            from shared.embedding_pass import run_embedding_pass
+            emb_summary = run_embedding_pass(config, data, neo4j, layer="ingredients")
+            summary["embedding"] = emb_summary
+        except Exception as emb_exc:
+            LOG.warning("embedding_pass_error", extra={"error": str(emb_exc)})
+
         # Update checkpoints for each table based on max updated_at in fetched rows.
         for table_name, table_cfg in tables_cfg.items():
             updated_at_col = table_cfg.get("updated_at")

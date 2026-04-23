@@ -154,8 +154,14 @@ def _drop_model_if_exists(neo4j: Neo4jClient, model_name: str) -> None:
     LOG.warning("model exists but could not be dropped", extra={"model": model_name})
 
 
-def train_and_write(neo4j: Neo4jClient, cfg: dict) -> None:
-    """Train GraphSAGE and write embeddings."""
+def train_and_write(neo4j: Neo4jClient, cfg: dict) -> dict:
+    """Train GraphSAGE and write embeddings.
+
+    Returns
+    -------
+    dict
+        ``{"train_millis": int, "nodes_written": int}``
+    """
     gs = cfg["graph_sage"]
     graph_name = gs["graph_name"]
     model_name = gs["model_name"]
@@ -191,8 +197,9 @@ def train_and_write(neo4j: Neo4jClient, cfg: dict) -> None:
             "embeddingDimension": emb_dim,
         },
     )
+    train_millis = train_result[0].get("trainMillis", 0) if train_result else 0
     if train_result:
-        LOG.info("GraphSAGE trained", extra={"model": model_name, "trainMillis": train_result[0].get("trainMillis")})
+        LOG.info("GraphSAGE trained", extra={"model": model_name, "trainMillis": train_millis})
     else:
         LOG.info("GraphSAGE trained", extra={"model": model_name})
 
@@ -215,14 +222,17 @@ def train_and_write(neo4j: Neo4jClient, cfg: dict) -> None:
             "writeProperty": write_prop,
         },
     )
+    nodes_written = write_result[0].get("nodeCount", 0) if write_result else 0
     if write_result:
         LOG.info("embeddings written", extra={
             "property": write_prop,
-            "nodeCount": write_result[0].get("nodeCount"),
+            "nodeCount": nodes_written,
             "nodePropertiesWritten": write_result[0].get("nodePropertiesWritten")
         })
     else:
         LOG.warning("embeddings write returned no result", extra={"property": write_prop})
+
+    return {"train_millis": train_millis, "nodes_written": nodes_written}
 
 
 def drop_graph(neo4j: Neo4jClient, graph_name: str) -> None:
