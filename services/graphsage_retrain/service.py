@@ -132,7 +132,9 @@ class GraphSageRetrainService:
 
             # Step 4+5: Train and write embeddings
             try:
-                train_and_write(neo4j, config)
+                tw_result = train_and_write(neo4j, config)
+                summary["train_ms"] = tw_result.get("train_millis", 0)
+                summary["nodes_written"] = tw_result.get("nodes_written", 0)
             finally:
                 # Step 6: Drop graph projection (model intentionally
                 # stays in GDS Catalog for incremental inference)

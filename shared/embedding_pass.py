@@ -72,6 +72,11 @@ def run_embedding_pass(
             LOG.info("no_semantic_rules_found", extra={"layer": layer})
             return summary
 
+        # Read configured write property (default: semanticEmbedding)
+        write_property = emb_config.get("semantic", {}).get(
+            "write_property", "semanticEmbedding"
+        )
+
         tables_cfg = config.get("tables", {})
 
         for table_name, rows in data.items():
@@ -110,7 +115,10 @@ def run_embedding_pass(
                 continue
 
             try:
-                count = write_semantic_embeddings(neo4j, label, embed_rows)
+                count = write_semantic_embeddings(
+                    neo4j, label, embed_rows,
+                    write_property=write_property,
+                )
                 summary["labels_processed"] += 1
                 summary["total_embedded"] += count
                 LOG.info(

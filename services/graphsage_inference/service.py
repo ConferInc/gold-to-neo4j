@@ -102,8 +102,9 @@ class GraphSageInferenceService:
         """Return the total number of nodes missing graphSageEmbedding."""
         total = 0
         for label in labels:
+            safe_label = label.replace("`", "")
             cypher = f"""
-            MATCH (n:{label})
+            MATCH (n:`{safe_label}`)
             WHERE n.graphSageEmbedding IS NULL AND n.id IS NOT NULL
             RETURN count(n) AS cnt
             """
@@ -129,8 +130,9 @@ class GraphSageInferenceService:
         for label in labels:
             if remaining <= 0:
                 break
+            safe_label = label.replace("`", "")
             cypher = f"""
-            MATCH (n:{label})
+            MATCH (n:`{safe_label}`)
             WHERE n.graphSageEmbedding IS NULL AND n.id IS NOT NULL
             RETURN id(n) AS nid
             LIMIT $limit

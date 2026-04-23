@@ -487,8 +487,9 @@ def embed_node_inline(
         id_prop = _cypher_prop(id_property)
         write_prop = _cypher_prop(write_property)
 
+        safe_label = normalize_label_name(label)
         cypher = f"""
-        MATCH (n:{label})
+        MATCH (n:`{safe_label}`)
         WHERE n.{id_prop} = $node_id
         SET n.{write_prop} = $embedding
         """
