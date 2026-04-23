@@ -77,6 +77,11 @@ class EmbeddingBackfillService:
                 LOG.info("backfill_no_rules", extra={"msg": "No semantic rules found"})
                 return summary
 
+            # Read configured write property (default: semanticEmbedding)
+            write_property = emb_config.get("semantic", {}).get(
+                "write_property", "semanticEmbedding"
+            )
+
             for label, rule in rules.items():
                 properties = list(rule.get("properties") or [])
                 if not properties:
@@ -108,7 +113,10 @@ class EmbeddingBackfillService:
                             continue
 
                         # Generate embeddings and write back
-                        count = write_semantic_embeddings(neo4j, label, rows)
+                        count = write_semantic_embeddings(
+                            neo4j, label, rows,
+                            write_property=write_property,
+                        )
                         label_count += count
 
                     if label_count > 0:

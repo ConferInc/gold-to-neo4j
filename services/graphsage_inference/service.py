@@ -98,14 +98,15 @@ class GraphSageInferenceService:
     # ── Count missing nodes ───────────────────────────
 
     @staticmethod
-    def _count_missing(neo4j: Neo4jClient, labels: List[str]) -> int:
-        """Return the total number of nodes missing graphSageEmbedding."""
+    def _count_missing(neo4j: Neo4jClient, labels: List[str], write_property: str = "graphSageEmbedding") -> int:
+        """Return the total number of nodes missing the GraphSAGE embedding."""
         total = 0
+        safe_prop = write_property.replace("`", "")
         for label in labels:
             safe_label = label.replace("`", "")
             cypher = f"""
             MATCH (n:`{safe_label}`)
-            WHERE n.graphSageEmbedding IS NULL AND n.id IS NOT NULL
+            WHERE n.`{safe_prop}` IS NULL AND n.id IS NOT NULL
             RETURN count(n) AS cnt
             """
             try:
@@ -122,18 +123,19 @@ class GraphSageInferenceService:
 
     @staticmethod
     def _collect_missing_node_ids(
-        neo4j: Neo4jClient, labels: List[str], limit: int
+        neo4j: Neo4jClient, labels: List[str], limit: int, write_property: str = "graphSageEmbedding"
     ) -> set:
-        """Return set of internal Neo4j node IDs missing graphSageEmbedding."""
+        """Return set of internal Neo4j node IDs missing the GraphSAGE embedding."""
         missing_ids: set = set()
         remaining = limit
+        safe_prop = write_property.replace("`", "")
         for label in labels:
             if remaining <= 0:
                 break
             safe_label = label.replace("`", "")
             cypher = f"""
             MATCH (n:`{safe_label}`)
-            WHERE n.graphSageEmbedding IS NULL AND n.id IS NOT NULL
+            WHERE n.`{safe_prop}` IS NULL AND n.id IS NOT NULL
             RETURN id(n) AS nid
             LIMIT $limit
             """
@@ -209,7 +211,8 @@ class GraphSageInferenceService:
 
             # ── Step 2: Count missing nodes ───────────
             labels = gs["node_labels"]
-            total_missing = self._count_missing(neo4j, labels)
+            write_property = gs.get("write_property", "graphSageEmbedding")
+            total_missing = self._count_missing(neo4j, labels, write_property)
             summary["total_missing"] = total_missing
 
             if total_missing == 0:
@@ -228,7 +231,7 @@ class GraphSageInferenceService:
 
             # ── Step 3: Collect missing node IDs ──────
             missing_ids = self._collect_missing_node_ids(
-                neo4j, labels, self._batch_limit
+                neo4j, labels, self._batch_limit, write_property
             )
             if not missing_ids:
                 summary["status"] = "success"
@@ -284,9 +287,9 @@ class GraphSageInferenceService:
 
                     # Batch write embeddings
                     if write_batch:
-                        write_cypher = """
+                        write_cypher = f"""
                         MATCH (n) WHERE id(n) = $nodeId
-                        SET n.graphSageEmbedding = $embedding
+                        SET n.`{write_property.replace('`', '')}` = $embedding
                         """
                         for node_id, embedding in write_batch:
                             try:
