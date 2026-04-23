@@ -95,6 +95,7 @@ class EmbeddingBackfillService:
                     for id_batch in iter_label_ids(
                         neo4j,
                         label,
+                        write_property=write_property,
                         only_missing=True,
                         batch_size=200,
                     ):
