@@ -1,5 +1,6 @@
-.venv
 .git
+.github
+.venv
 __pycache__
 *.pyc
 *.pyo
@@ -10,3 +11,9 @@ state
 .pytest_cache
 dist
 build
+
+# Secrets and env
+.env*
+*.pem
+secrets/
+.aws/
